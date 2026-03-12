@@ -384,7 +384,7 @@ export default function App() {
   function getTimezoneLabel(timeZone) {
     const offset = getTimezoneOffsetLabel(timeZone);
     const display = getTimezoneDisplayName(timeZone);
-    return ${offset} · ${display};
+    return `${offset} · ${display}`;
   }
 
 
