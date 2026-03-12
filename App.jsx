@@ -224,6 +224,10 @@ const timezoneAliases = {
 
 
 
+function getTimezoneAliases(timeZone) {
+  return timezoneAliases[timeZone] || [];
+}
+
 
 export default function App() {
   const today = new Date();
