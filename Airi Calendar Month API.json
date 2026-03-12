@@ -1,0 +1,119 @@
+{
+  "name": "Airi Calendar Month API",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "airi-calendar-month",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "222c0e89-c0c3-42d8-ad8e-177927fb3504",
+      "name": "Webhook",
+      "webhookId": "974bca38-9278-477c-9867-b57f1cde8779"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  to_char(\n    remind_at AT TIME ZONE COALESCE(\n      (SELECT timezone\n       FROM tg_reminder_users\n       WHERE telegram_user_id = {{$json.query.user_id}}\n       LIMIT 1),\n      'UTC'\n    ),\n    'YYYY-MM-DD'\n  ) AS date,\n  COUNT(*)::int AS count\nFROM tg_reminders\nWHERE telegram_user_id = {{$json.query.user_id}}\n  AND EXTRACT(\n    YEAR FROM remind_at AT TIME ZONE COALESCE(\n      (SELECT timezone\n       FROM tg_reminder_users\n       WHERE telegram_user_id = {{$json.query.user_id}}\n       LIMIT 1),\n      'UTC'\n    )\n  ) = {{$json.query.year}}\n  AND EXTRACT(\n    MONTH FROM remind_at AT TIME ZONE COALESCE(\n      (SELECT timezone\n       FROM tg_reminder_users\n       WHERE telegram_user_id = {{$json.query.user_id}}\n       LIMIT 1),\n      'UTC'\n    )\n  ) = {{$json.query.month}}\n  AND status <> 'deleted'\nGROUP BY 1\nORDER BY 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        272,
+        0
+      ],
+      "id": "328cad20-0ea4-49f7-b3e8-d4dd4f53db62",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "0b0fkAGEHTVoBVeF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        944,
+        0
+      ],
+      "id": "000946f4-7532-4bdb-885e-c99bf3dabd78",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst result = items.map(item => ({\n  date: item.json.date,\n  count: item.json.count\n}));\n\nreturn [\n  {\n    json: result\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        0
+      ],
+      "id": "cbf9185d-5f84-4128-a8e8-e480de348ffc",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "7cbcd6b6-ce20-4ae0-be83-1ef287760aab",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e577a1b601e02707e095a5b12ec7127cd4c2b17ebaebb5bbf140661926b3c25a"
+  },
+  "id": "DUtY5FGVH2PEPxjs",
+  "tags": []
+}

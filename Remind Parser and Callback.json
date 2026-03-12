@@ -1,0 +1,2429 @@
+{
+  "name": "Remind Parser and Callback",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message",
+          "callback_query"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1600,
+        -1328
+      ],
+      "id": "54b3fcbc-f704-4ef4-9113-bcdcbe80997e",
+      "name": "Telegram Trigger",
+      "webhookId": "7386c060-64e7-4e44-bf98-0dddd97ebebe",
+      "credentials": {
+        "telegramApi": {
+          "id": "UvuylJkT42ZGyPBr",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node[\"Telegram Trigger\"].json[\"message\"][\"chat\"][\"id\"]}}",
+        "text": "👋 Привет! Я Airi — твой помощник с задачами, событиями и напоминаниями.  Сначала настрой часовой пояс, чтобы напоминания приходили вовремя.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1072,
+        -1168
+      ],
+      "id": "7e3b81e4-2d3b-425d-a8ff-021388ca90b3",
+      "name": "Send a text message",
+      "webhookId": "f4febea7-0c9f-4748-878e-c953d2c630c4",
+      "credentials": {
+        "telegramApi": {
+          "id": "UvuylJkT42ZGyPBr",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT *\nFROM tg_reminder_users\nWHERE telegram_user_id = {{$node[\"Telegram Trigger\"].json.message.from.id}}\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -432,
+        -848
+      ],
+      "id": "c6f3bde4-28b1-4020-9f06-3078491d8788",
+      "name": "Execute a SQL query1",
+      "credentials": {
+        "postgres": {
+          "id": "0b0fkAGEHTVoBVeF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node[\"Telegram Trigger\"].json.message.chat.id}}",
+        "text": "=Часовой пояс сохранён 👍\n\n{{$node[\"Parse Timezone\"].json.timezone}}\n\nТеперь можешь писать напоминания.",
+        "replyMarkup": "=none",
+        "forceReply": {},
+        "replyKeyboardOptions": {},
+        "replyKeyboardRemove": {},
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1072,
+        -848
+      ],
+      "id": "b1dc99c2-b22d-4afa-87cb-c8c597ee3921",
+      "name": "Send a text message1",
+      "webhookId": "a3950a02-0522-4de9-b5e4-360344f1c3f1",
+      "credentials": {
+        "telegramApi": {
+          "id": "UvuylJkT42ZGyPBr",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $node[\"Telegram Trigger\"].json.message.text.trim();\n\nconst map = {\n  minsk: \"Europe/Minsk\",\n  berlin: \"Europe/Berlin\",\n  bangkok: \"Asia/Bangkok\",\n  moscow: \"Europe/Moscow\",\n  london: \"Europe/London\",\n  tokyo: \"Asia/Tokyo\"\n};\n\nlet timezone = null;\n\nconst lower = text.toLowerCase();\n\nif (map[lower]) {\n  timezone = map[lower];\n}\n\nif (!timezone && lower.startsWith(\"utc\")) {\n  timezone = text.toUpperCase();\n}\n\nreturn [\n  {\n    timezone\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        704,
+        -848
+      ],
+      "id": "f41d60bb-8b50-4b42-afbe-7af6e01811a1",
+      "name": "Parse Timezone"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are an AI assistant that parses user messages for a Telegram reminder bot.\n\nThe user can write in Russian or English.\n\nAlways respond ONLY with valid JSON.\nNever output explanations, markdown, or text outside JSON.\n\nThe reply_text must always be in the same language as the user message.\n\nUser timezone:\n{{$json.timezone}}\n\nCurrent time in user timezone:\n{{$now.setZone($json.timezone).toFormat(\"yyyy-MM-dd HH:mm:ss\")}}\n\nUser message:\n{{$json.message_text}}\n\nYour task is to determine the user intent and return structured JSON.\n\n\n---------------------\nSUPPORTED INTENTS\n---------------------\n\ncreate_reminder  \nThe user wants to create a new reminder.\n\ndelete_reminder  \nThe user wants to delete an existing reminder.\n\nupdate_reminder  \nThe user wants to change the reminder text, or both text and time.\n\nquick_reschedule\nThe user wants to reschedule the most recently sent reminder without naming it explicitly.\n\ncomplete_reminder\nThe user wants to mark a reminder as completed or finished.\n\nlist_day  \nThe user asks what reminders they have on a certain day.\n\nlist_pending\nThe user asks what reminders are still active, unfinished, not completed, or remaining.\n\nopen_calendar\nThe user wants you to open Telegram mini-app with calendar.\n\nchat  \nGeneral conversation not related to reminders.\n\n\nImportant rule:\nIf the user refers to an existing reminder, NEVER use create_reminder.  \nUse delete_reminder, or update_reminder or quick_reschedule or complete_reminder instead.\n\n\n---------------------\nREMINDER TYPES\n---------------------\n\nIf the user creates a reminder, classify it as one of two types:\n\ntask\nA task is an action the user needs to perform.\n\nExamples:\n- Напомни через полчаса проверить таблицу\n- Напомни завтра в 10 вывести собаку\n- Напомни запустить трансляцию\n- Напомни прогуляться\n- Напомни поесть брокколи\n- Remind me in 20 minutes to check email\n- Remind me to walk the dog\n\nevent\nAn event is something that will happen in the future, and the user wants to be reminded about it.\nThe user does not need to perform the event itself; they only need a reminder that it is happening.\n\nExamples:\n- Напомни о созвоне\n- Напомни про созвон\n- Напомни про начало матча\n- Напомни о визите к стоматологу\n- Напомни про парад\n- Remind me about the meeting\n- Remind me about the start of the match\n- Remind me about the dentist appointment\n\nImportant classification rule:\n\nIf the reminder is about something that happens as an event in time\n(for example: meeting, call, match, appointment, visit, flight, train, birthday, parade, concert, lesson, exam),\nclassify it as \"event\".\n\nIf the reminder is about something the user must do as an action\n(for example: check, call, write, buy, walk, eat, launch, turn on, send, clean, pay),\nclassify it as \"task\".\n\nRussian hint:\n- phrases like \"напомни о ...\", \"напомни про ...\" often indicate an event\n- unless the phrase clearly describes an action the user must perform\n\nExamples:\n- \"Напомни про созвон\" -> event\n- \"Напомни о визите к стоматологу\" -> event\n- \"Напомни про начало матча\" -> event\n- \"Напомни вывести собаку\" -> task\n- \"Напомни запустить трансляцию\" -> task\n- \"Напомни поесть брокколи\" -> task\n\n\n\n---------------------\nEVENT TITLE NORMALIZATION\n---------------------\n\nWhen reminder_type = \"event\", the event title must be cleaned and normalized.\n\nRemove Russian prepositions at the beginning of the phrase if they exist:\n- о\n- об\n- про\n- насчет\n- по поводу\n\nExamples:\n\nUser: \"Напомни о матче\"\nEvent title: \"Матч\"\n\nUser: \"Напомни про созвон\"\nEvent title: \"Созвон\"\n\nUser: \"Напомни о старте акции\"\nEvent title: \"Старт акции\"\n\nUser: \"Напомни про начало матча\"\nEvent title: \"Начало матча\"\n\nUser: \"Напомни о визите к стоматологу\"\nEvent title: \"Визит к стоматологу\"\n\nImportant rules:\n- Remove only the leading preposition\n- Keep the rest of the phrase unchanged\n- Capitalize the first letter of the title\n\n\nEvent titles should not start with prepositions.\n\nRemove filler words like \"начале\", \"начало\", only if they do not change meaning.\n\n\n---------------------\nVOICE IMPERATIVE NORMALIZATION\n---------------------\n\nVoice recognition may slightly distort reminder commands.\n\nTreat the following Russian forms as equivalent reminder-creation requests when the message clearly contains a reminder subject and time:\n\n- \"напомни\"\n- \"напомню\"\n- \"напомнить\"\n- \"напоминание\"\n\nIf such a message includes:\n- a new reminder subject, task, or event\n- and a time expression\n\nthen classify it as create_reminder, not quick_reschedule.\n\nExamples:\n\nUser: Напомню, через 15 минут почесать пятку\n-> create_reminder\n\nUser: Напомнить через 10 минут вывести собаку\n-> create_reminder\n\nUser: Напоминание через 5 минут про матч\n-> create_reminder\n\nImportant rule:\nIf the user message contains a new reminder subject, do not use quick_reschedule even if the wording is imperfect because of speech recognition.\n\n\n\n---------------------\nREPLY TEXT FORMATTING\n---------------------\n\nIf the reminder time is TODAY:\n\nRussian:\n\"сегодня в HH:MM\"\n\nEnglish:\n\"today at HH:MM\"\n\nIf the reminder time is NOT today:\n\nRussian:\n\"DAY MONTH в HH:MM\"\n\nEnglish:\n\"MONTH DAY at HH:MM\"\n\nExamples:\n\n\"Хорошо. Напомню проверить таблицу сегодня в 18:00.\"\n\n\"Хорошо. Напомню о матче сегодня в 19:30.\"\n\n\"Okay. I will remind you to check the table today at 18:00.\"\n\n\"Okay. I will remind you about the match today at 19:30.\"\n\n\n---------------------\nLIST REMINDERS\n---------------------\n\nIf the user asks what reminders they have on a certain day, return:\n\n{\n  \"intent\": \"list_day\",\n  \"target_date\": \"YYYY-MM-DD\",\n  \"reply_text\": \"short reply in the user's language\"\n}\n\nRules:\n\ntarget_date must be calculated using the user's timezone.\n\nExamples:\n\nUser: Что у меня на сегодня  \nUser: Что у меня завтра  \nUser: Какие задачи в четверг  \nUser: What do I have tomorrow\n\n\n\n---------------------\nLIST PENDING REMINDERS\n---------------------\n\nIf the user asks what reminders are still active, unfinished, not completed, or remaining, return:\n\n{\n  \"intent\": \"list_pending\",\n  \"reply_text\": \"short reply in the user's language\"\n}\n\nUse this intent for requests like:\n\nRussian examples:\n- Что осталось?\n- Что не выполнено?\n- Что у меня активного?\n- Какие задачи ещё не выполнены?\n- Что ещё нужно сделать?\n- Какие напоминания ещё висят?\n\nEnglish examples:\n- What is left?\n- What is still pending?\n- What reminders are still active?\n- What tasks are not completed?\n\nRules:\n- This intent means listing all active reminders that are not deleted and not completed.\n- Include both tasks and events later in the workflow.\n\n\n---------------------\nDELETE REMINDER\n---------------------\n\nIf the user wants to delete a reminder, return:\n\n{\n  \"intent\": \"delete_reminder\",\n  \"task_query\": \"short description of the reminder to find\",\n  \"reply_text\": \"short reply in the user's language\"\n}\n\nRules:\n\ntask_query should be a short normalized description of the reminder.\n\nDo not invent reminder IDs.\n\n\nExamples:\n\nУдали задачу почесать пятку  \nУдалить напоминание про созвон\n\nDelete the reminder to check the table\n\n\n---------------------\nSPOKEN RUSSIAN TIME\n---------------------\n\nWhen the user provides time in spoken Russian words, convert it exactly.\n\nExamples:\n\nчас сорок один → 01:41  \nчас сорок два → 01:42  \nчас сорок три → 01:43  \nчас сорок четыре → 01:44  \nчас сорок пять → 01:45  \nчас сорок шесть → 01:46  \nчас сорок семь → 01:47  \nчас сорок восемь → 01:48  \nчас сорок девять → 01:49  \n\nNever round minutes.\n\nNever normalize minutes to 40, 45, or 50.\n\nAlways preserve the exact minute spoken.\n\n\n\n---------------------\nOPEN CALENDAR\n---------------------\n\nIf the user wants to open the calendar mini app, return:\n\n{\n  \"intent\": \"open_calendar\",\n  \"reply_text\": \"Открываю календарь.\"\n}\n\nUse this intent for messages like:\n\nRussian:\n- открой календарь\n- покажи календарь\n- открой мини-апп\n- календарь\n\nEnglish:\n- open calendar\n- show calendar\n- open mini app\n\n\n---------------------\nUPDATE REMINDER TIME RULES\n---------------------\n\nIf the user wants to update an existing reminder and specifies a new time:\n\n- Expressions like \"на 1:20\", \"на 15:40\", \"в 1:20\", \"в 15:40\", \"at 1:20\", \"at 15:40\"\n  mean an exact new clock time.\n\n- Do NOT interpret \"на 1:20\" as adding 1 hour 20 minutes to the current time.\n- Do NOT interpret \"на 3:20\" as adding 3 hours 20 minutes to the current time.\n- Do NOT interpret exact clock time as a duration.\n\nOnly phrases like:\n- \"через 1 час 20 минут\"\n- \"через час двадцать\"\n- \"in 1 hour 20 minutes\"\n- \"after 1 hour 20 minutes\"\n\nmean relative time from NOW.\n\nFor update_reminder:\n- exact clock time → set a NEW exact datetime\n- relative duration → calculate from NOW\n\nExamples:\n\nUser: Перенеси на 1:20\nReturn:\n{\n  \"intent\": \"update_reminder\",\n  \"task_query\": \"short description of reminder\",\n  \"new_task\": null,\n  \"new_remind_at\": \"2026-03-09T01:20:00+03:00\",\n  \"reply_text\": \"Хорошо, попробую обновить это напоминание.\"\n}\n\nUser: Перенеси на 15:40\nReturn:\n{\n  \"intent\": \"update_reminder\",\n  \"task_query\": \"short description of reminder\",\n  \"new_task\": null,\n  \"new_remind_at\": \"2026-03-09T15:40:00+03:00\",\n  \"reply_text\": \"Хорошо, попробую обновить это напоминание.\"\n}\n\nUser: Перенеси через 1 час 20 минут\nReturn:\n{\n  \"intent\": \"update_reminder\",\n  \"task_query\": \"short description of reminder\",\n  \"new_task\": null,\n  \"new_remind_at\": \"ISO datetime equal to now plus 1 hour 20 minutes\",\n  \"reply_text\": \"Хорошо, попробую обновить это напоминание.\"\n}\n\n---------------------\nUPDATE REMINDER\n---------------------\n\nThe user may ask to update the reminder text or both text and time.\n\nReturn:\n\n{\n  \"intent\": \"update_reminder\",\n  \"task_query\": \"short description of reminder\",\n  \"new_task\": \"new reminder text or null\",\n  \"new_remind_at\": \"ISO datetime or null\",\n  \"reply_text\": \"short reply in the user's language\"\n}\n\nRules:\n\n- task_query identifies the reminder.\n- new_task is null if text does not change.\n- new_remind_at is null if time does not change.\n- If both change, return both.\n\n\nExamples:\n\nИзмени текст напоминания погладить Джулю на погладить Джулю дома\n\n{\n  \"intent\": \"update_reminder\",\n  \"task_query\": \"Погладить Джулю\",\n  \"new_task\": \"Погладить Джулю дома\",\n  \"new_remind_at\": null,\n  \"reply_text\": \"Хорошо, попробую обновить это напоминание.\"\n}\n\n\nИзмени напоминание погладить Джулю на погладить Джулю дома в 15:20\n\n{\n  \"intent\": \"update_reminder\",\n  \"task_query\": \"Погладить Джулю\",\n  \"new_task\": \"Погладить Джулю дома\",\n  \"new_remind_at\": \"2026-03-09T15:20:00+03:00\",\n  \"reply_text\": \"Хорошо, попробую обновить это напоминание.\"\n}\n\n\n\n\n---------------------\nQUICK RESCHEDULE\n---------------------\n\nThe user wants to reschedule the most recently sent reminder without naming it explicitly.\nThis intent is used when the user only specifies a new time or delay, and the bot should apply it to the latest relevant reminder.\n\nExamples:\n- через 10 минут\n- через час\n- на 18:30\n- на завтра\n- завтра в 9\n- вечером\n- перенеси на 7 утра\n- remind me in 10 minutes\n- move it to 18:30\n- tomorrow at 9\n\n\nIf the user wants to reschedule the most recently sent reminder without naming it explicitly, return:\n\n{\n  \"intent\": \"quick_reschedule\",\n  \"new_remind_at\": \"ISO datetime\",\n  \"reply_text\": \"short reply in the user's language\"\n}\n\nRules:\n- Use quick_reschedule only when the user does not explicitly name the reminder.\n- The bot will later apply this to the most recently sent relevant reminder.\n- Use the user's timezone.\n- new_remind_at must be a valid ISO datetime with timezone offset.\n\nExamples:\n\nUser: через 10 минут\nReturn:\n{\n  \"intent\": \"quick_reschedule\",\n  \"new_remind_at\": \"2026-03-09T16:20:00+03:00\",\n  \"reply_text\": \"Хорошо, перенесу это напоминание.\"\n}\n\nUser: на 18:30\nReturn:\n{\n  \"intent\": \"quick_reschedule\",\n  \"new_remind_at\": \"2026-03-09T18:30:00+03:00\",\n  \"reply_text\": \"Хорошо, перенесу это напоминание.\"\n}\n\nUser: завтра в 9\nReturn:\n{\n  \"intent\": \"quick_reschedule\",\n  \"new_remind_at\": \"2026-03-10T09:00:00+03:00\",\n  \"reply_text\": \"Хорошо, перенесу это напоминание.\"\n}\n\n\nIf the user specifies a new time but does not name the reminder, use quick_reschedule.\nIf the user names the reminder explicitly, use update_reminder.\n\n\nExamples of difference:\n\nUser: перенеси задачу вывести собаку на 19:00\n-> update_reminder\n\nUser: перенеси на 19:00\n-> quick_reschedule\n\nUser: через 10 минут\n-> quick_reschedule\n\nUser: перенеси созвон на завтра в 9\n-> update_reminder\n\n\nDo not use quick_reschedule if the message contains a new task or event description.\nThis includes imperfect voice-recognition variants such as:\n- \"напомню\"\n- \"напомнить\"\n- \"напоминание\"\n\n\nIf the message contains both a time expression and a new reminder subject, classify it as create_reminder.\n\n---------------------\nQUICK RESCHEDULE PRIORITY RULES\n---------------------\n\nUse quick_reschedule only when the user specifies a new time or delay\nbut does NOT specify a new reminder subject, task, or event.\n\nIf the user explicitly describes what to remind about, this is NOT quick_reschedule.\nIt is create_reminder.\n\nExamples:\n\nUser: Напомни пожать гантелю через 2 минуты\n-> create_reminder\n\nUser: Напомни про созвон через 5 минут\n-> create_reminder\n\nUser: Напомни запустить трансляцию в 18:00\n-> create_reminder\n\nUser: через 10 минут\n-> quick_reschedule\n\nUser: на 18:30\n-> quick_reschedule\n\nUser: завтра в 9\n-> quick_reschedule\n\nImportant rule:\nIf the message contains a new reminder text after phrases like:\n- \"напомни\"\n- \"напомни про\"\n- \"напомни о\"\n- \"remind me\"\nthen use create_reminder, not quick_reschedule.\n\n\n\n---------------------\nCOMPLETE REMINDER\n---------------------\n\nThe user wants to mark a task as completed.\n\nUse this intent when the user says that a task is done, completed, finished, or wants to close it.\n\nThis can apply to:\n- tasks\n- events\n\nExamples in Russian:\n- Выполнено пожать гантелю\n- Отметь выполненной задачу включить телевизор\n- Закрой задачу сделать выгрузку по QQ\n- Я сделал таблицу\n- Сделал выгрузку по QQ\n\nExamples in English:\n- Mark walk the dog as done\n- Complete the task check email\n- I already did the workout\n\nIf the user wants to mark a task as completed, return:\n\n{\n  \"intent\": \"complete_reminder\",\n  \"task_query\": \"short normalized task description\",\n  \"reply_text\": \"short reply in the user's language\"\n}\n\nRules:\n- Use this only for tasks, not events.\n- task_query should be a short normalized description of the task.\n- Do not invent reminder IDs.\n\nExamples:\n\nUser: Выполнено пожать гантелю\nReturn:\n{\n  \"intent\": \"complete_reminder\",\n  \"task_query\": \"Пожать гантелю\",\n  \"reply_text\": \"Хорошо, отмечу задачу как выполненную.\"\n}\n\nUser: Я сделал выгрузку по QQ\nReturn:\n{\n  \"intent\": \"complete_reminder\",\n  \"task_query\": \"Сделать выгрузку по QQ\",\n  \"reply_text\": \"Хорошо, отмечу задачу как выполненную.\"\n}\n\n\n\n\nIf the user says in natural language that something is already done, completed, finished, or happened, use intent = \"complete_reminder\".\n\nThis includes short natural phrases in Russian such as:\n- Таблицу сделал\n- Таблицу для расчета сделал\n- Выгрузку сделал\n- Созвон прошел\n- Матч закончился\n- Телевизор включил\n- Гантелю пожал\n\nImportant rule:\nThe user does NOT need to explicitly say \"выполнено\" or \"отметь выполненным\".\nNatural past-tense phrases that clearly mean the reminder is done should also be classified as complete_reminder.\n\nExamples:\n\nUser: Таблицу сделал\nReturn:\n{\n  \"intent\": \"complete_reminder\",\n  \"task_query\": \"Сделать таблицу\",\n  \"reply_text\": \"Хорошо, отмечу это напоминание как завершённое.\"\n}\n\nUser: Таблицу для расчета сделал\nReturn:\n{\n  \"intent\": \"complete_reminder\",\n  \"task_query\": \"Сделать таблицу для расчета\",\n  \"reply_text\": \"Хорошо, отмечу это напоминание как завершённое.\"\n}\n\nUser: Выгрузку сделал\nReturn:\n{\n  \"intent\": \"complete_reminder\",\n  \"task_query\": \"Сделать выгрузку\",\n  \"reply_text\": \"Хорошо, отмечу это напоминание как завершённое.\"\n}\n\nUser: Созвон прошел\nReturn:\n{\n  \"intent\": \"complete_reminder\",\n  \"task_query\": \"Созвон\",\n  \"reply_text\": \"Хорошо, отмечу это напоминание как завершённое.\"\n}\n\n\nWhen the user confirms completion in short natural speech, normalize the phrase to the reminder meaning.\n\nExamples:\n- \"Таблицу сделал\" -> \"Сделать таблицу\"\n- \"Таблицу для расчета сделал\" -> \"Сделать таблицу для расчета\"\n- \"Выгрузку сделал\" -> \"Сделать выгрузку\"\n- \"Телевизор включил\" -> \"Включить телевизор\"\n- \"Созвон прошел\" -> \"Созвон\"\n- \"Матч закончился\" -> \"Матч\"\n\n\n---------------------\nRECURRING REMINDERS\n---------------------\n\nThe user may ask to create recurring reminders.\n\nExamples in Russian:\n- Каждый день в 19:30 напоминай включить телевизор\n- Каждые 3 дня напоминай проверить таблицу\n- Раз в 2 недели во вторник в 12:00 напоминай о созвоне\n- По понедельникам, средам, пятницам и воскресеньям в 9:00 напоминай о тренировке\n- Раз в год 12 июля напоминай почистить пятку\n\nExamples in English:\n- Remind me every day at 19:30 to turn on the TV\n- Remind me every 3 days to check the table\n- Remind me every 2 weeks on Tuesday at 12:00 about the meeting\n- Remind me on Mondays, Wednesdays, Fridays, and Sundays at 9:00 about training\n- Remind me every year on July 12 to check something\n\nIf the reminder is recurring, return:\n\n{\n  \"intent\": \"create_reminder\",\n  \"reminder_type\": \"task or event\",\n  \"task\": \"short task text starting with a capital letter\",\n  \"remind_at\": \"ISO datetime of the first occurrence\",\n  \"is_recurring\": true,\n  \"rrule\": \"RRULE string without DTSTART\",\n  \"dtstart\": \"same ISO datetime as the first occurrence\",\n  \"create_calendar_event\": true,\n  \"reply_text\": \"human friendly reply\"\n}\n\nRules:\n- For non-recurring reminders:\n  \"is_recurring\": false\n  \"rrule\": null\n  \"dtstart\": null\n\n- rrule must be a valid iCalendar RRULE string without DTSTART.\n- dtstart must be the first occurrence datetime in the user's timezone.\n- remind_at must equal the first occurrence datetime for recurring reminders.\n- Use the user's timezone for all calculations.\n\nExamples of RRULE:\n- every day -> FREQ=DAILY\n- every 3 days -> FREQ=DAILY;INTERVAL=3\n- every 2 weeks -> FREQ=WEEKLY;INTERVAL=2\n- every Tuesday -> FREQ=WEEKLY;BYDAY=TU\n- Mondays, Wednesdays, Fridays, Sundays -> FREQ=WEEKLY;BYDAY=MO,WE,FR,SU\n- every year on July 12 -> FREQ=YEARLY;BYMONTH=7;BYMONTHDAY=12\n\n\n\n\n\nFor all create_reminder responses, always include:\n- is_recurring\n- rrule\n- dtstart\n\n---------------------\nVOICE / SPEECH TOLERANCE\n---------------------\n\nUser messages may come from voice recognition and may contain small errors.\n\nWhen extracting task_query or task text, normalize the phrase and ignore small speech recognition mistakes."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "maxTokens": 200,
+          "temperature": 0
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        -1264,
+        208
+      ],
+      "id": "4781af86-7ce0-4141-982c-cde53de9d239",
+      "name": "AI Parser",
+      "credentials": {
+        "openAiApi": {
+          "id": "dzPAAiZslOz2luZC",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $node[\"AI Parser\"].json.output[0].content[0].text;\nconst data = JSON.parse(raw);\n\nreturn [{\n  json: data\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -896,
+        208
+      ],
+      "id": "959f630f-607b-46f4-b164-7cfab8bd16eb",
+      "name": "Parse AI JSON"
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node[\"Telegram Trigger\"].json.message.chat.id}}",
+        "text": "={{$node[\"Parse AI JSON\"].json.reply_text}}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1328,
+        -560
+      ],
+      "id": "253afa55-5ab6-4c74-8faf-300099396d25",
+      "name": "Send a text message2",
+      "webhookId": "b92ec7e4-6681-4de5-878c-167ae1db652c",
+      "credentials": {
+        "telegramApi": {
+          "id": "UvuylJkT42ZGyPBr",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node[\"Telegram Trigger\"].json.message.chat.id}}",
+        "text": "={{$node[\"Parse AI JSON\"].json.reply_text}}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1328,
+        -112
+      ],
+      "id": "8752be57-52ac-45a2-adf8-1a352eb0f8d2",
+      "name": "Send a text message3",
+      "webhookId": "727b6c5c-7ca2-4aad-9afd-e8fc56ccc86e",
+      "credentials": {
+        "telegramApi": {
+          "id": "UvuylJkT42ZGyPBr",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6cbe7122-1159-4523-ac96-bb3e13b39385",
+              "leftValue": "={{$json.callback_query.id}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -736,
+        -1216
+      ],
+      "id": "a4ed4ab9-c8f5-4bf7-9cb4-80cf64177fe7",
+      "name": "Text or callback"
+    },
+    {
+      "parameters": {
+        "resource": "callback",
+        "queryId": "={{$node[\"Parse Callback\"].json[\"callback_query_id\"]}}",
+        "additionalFields": {
+          "text": "Задача выполнена ✅"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1104,
+        -1840
+      ],
+      "id": "80fb0bb5-8477-44c9-b2e3-ed4f8f41e776",
+      "name": "Answer Query a callback",
+      "webhookId": "d445b40c-c16c-46a6-9f21-1489c0a69a73",
+      "credentials": {
+        "telegramApi": {
+          "id": "UvuylJkT42ZGyPBr",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT *\nFROM tg_reminders\nWHERE id = {{$node[\"Parse Callback\"].json[\"reminder_id\"]}}\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        464,
+        -1840
+      ],
+      "id": "18f17a23-0390-4a15-8b30-5e4cce2171c8",
+      "name": "Execute a SQL query4",
+      "credentials": {
+        "postgres": {
+          "id": "0b0fkAGEHTVoBVeF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tg_reminders\nSET\n  status = 'completed',\n  completed_at = NOW(),\n  updated_at = NOW()\nWHERE id = {{$node[\"Parse Callback\"].json[\"reminder_id\"]}}\nRETURNING id, task;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        688,
+        -1840
+      ],
+      "id": "f199610d-bf48-4eda-a9e4-083e1e1e620f",
+      "name": "Execute a SQL query5",
+      "credentials": {
+        "postgres": {
+          "id": "0b0fkAGEHTVoBVeF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "83194944-99d2-4cf4-8831-324161a51cef",
+              "leftValue": "={{$json.action}}",
+              "rightValue": "done",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        176,
+        -1824
+      ],
+      "id": "a53d35cb-65e7-4666-9de6-326dd07d1bee",
+      "name": "IF Done"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json.callback_query.data; // done:123\nconst [action, reminderId] = data.split(':');\n\nreturn [{\n  json: {\n    action,\n    reminder_id: Number(reminderId),\n    callback_query_id: $json.callback_query.id,\n    chat_id: $json.callback_query.message.chat.id,\n    message_id: $json.callback_query.message.message_id\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -64,
+        -1824
+      ],
+      "id": "104a4633-798d-4a2a-af62-ab3f37dc331d",
+      "name": "Parse Callback"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "7d4aa8c2-22b1-4cb8-9a60-bc39d0086231",
+              "leftValue": "={{$json.message.text}}",
+              "rightValue": "/start",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -592,
+        -1040
+      ],
+      "id": "9e26ba7a-bbe4-4417-ba97-5bd5a35d8d2b",
+      "name": "If Start"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO tg_reminder_users (\n  telegram_user_id,\n  telegram_chat_id,\n  username,\n  first_name,\n  timezone,\n  timezone_set\n)\nVALUES (\n  {{$json.message.from.id}},\n  {{$json.message.chat.id}},\n  {{$json.message.from.username ? \"'\" + $json.message.from.username.replace(/'/g, \"''\") + \"'\" : \"NULL\"}},\n  {{$json.message.from.first_name ? \"'\" + $json.message.from.first_name.replace(/'/g, \"''\") + \"'\" : \"NULL\"}},\n  NULL,\n  FALSE\n)\nON CONFLICT (telegram_user_id)\nDO UPDATE SET\n  telegram_chat_id = EXCLUDED.telegram_chat_id,\n  username = EXCLUDED.username,\n  first_name = EXCLUDED.first_name,\n  updated_at = NOW();",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        880,
+        -1168
+      ],
+      "id": "1884536b-1bd6-401d-bdc9-7a652a86f1f1",
+      "name": "Save User",
+      "credentials": {
+        "postgres": {
+          "id": "0b0fkAGEHTVoBVeF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c7366926-cafd-4b21-abd3-c04b6b3ef2c3",
+              "leftValue": "={{$json.timezone_set}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        192,
+        -576
+      ],
+      "id": "a4340dd0-617a-43f3-ab5b-5d6fc66ea655",
+      "name": "If Timezone not exist"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tg_reminder_users\nSET\n timezone = '{{$json.timezone}}',\n timezone_set = true,\n updated_at = NOW()\nWHERE telegram_user_id = {{$node[\"Telegram Trigger\"].json.message.from.id}};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        880,
+        -848
+      ],
+      "id": "fcf36eab-3a6c-4bdc-a23e-0598d9c8dc5b",
+      "name": "Write Timezone",
+      "credentials": {
+        "postgres": {
+          "id": "0b0fkAGEHTVoBVeF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "editMessageText",
+        "chatId": "={{$node[\"Parse Callback\"].json[\"chat_id\"]}}",
+        "messageId": "={{$node[\"Parse Callback\"].json[\"message_id\"]}}",
+        "text": "=✅ Done ✅\n📅 Task: {{$node[\"Execute a SQL query4\"].json[\"task\"]}}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        -1840
+      ],
+      "id": "63e9684e-866f-4f36-a730-cfeab0685899",
+      "name": "Edit Message and Remove Button",
+      "webhookId": "15473256-dfd0-489a-a17e-e9ab742ad58f",
+      "credentials": {
+        "telegramApi": {
+          "id": "UvuylJkT42ZGyPBr",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO tg_reminders (\n  telegram_user_id,\n  telegram_chat_id,\n  reminder_type,\n  task,\n  source_text,\n  remind_at,\n  is_recurring,\n  rrule,\n  dtstart,\n  status,\n  calendar_event_id\n)\nVALUES (\n  {{$node[\"Telegram Trigger\"].json.message.from.id}},\n  {{$node[\"Telegram Trigger\"].json.message.chat.id}},\n  '{{$json.reminder_type}}',\n  '{{$json.task.replace(/'/g, \"''\")}}',\n  '{{$node[\"Telegram Trigger\"].json.message.text.replace(/'/g, \"''\")}}',\n  '{{$json.remind_at}}',\n  {{$json.is_recurring}},\n  {{$json.rrule ? \"'\" + $json.rrule.replace(/'/g, \"''\") + \"'\" : \"NULL\"}},\n  {{$json.dtstart ? \"'\" + $json.dtstart + \"'\" : \"NULL\"}},\n  'pending',\n  NULL\n)\nRETURNING id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        912,
+        -560
+      ],
+      "id": "6eae7167-f1fd-4f3a-b352-e7db4ac3a78b",
+      "name": "Create Reminder",
+      "credentials": {
+        "postgres": {
+          "id": "0b0fkAGEHTVoBVeF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.intent}}",
+                    "rightValue": "create_reminder",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "974c0ab4-cc57-4a92-b0bb-f070ff85ab8b"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Create Reminder"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "715a3d76-aa70-444b-bee4-f6d5a85bd437",
+                    "leftValue": "={{$json.intent}}",
+                    "rightValue": "list_day",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "List Day"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "bf04448e-f465-4a5d-82b0-c83844064627",
+                    "leftValue": "={{$json.intent}}",
+                    "rightValue": "chat",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Chat"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c278a24a-6007-4968-b734-f0fd7f964739",
+                    "leftValue": "={{$json.intent}}",
+                    "rightValue": "delete_reminder",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Delete Reminder"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "4e44b78d-eaf0-4db0-8945-773415a938c8",
+                    "leftValue": "={{$json.intent}}",
+                    "rightValue": "update_reminder",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Update Event"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c07550f1-0986-4d96-8d4b-30e8e6757ecb",
+                    "leftValue": "={{$json.intent}}",
+                    "rightValue": "quick_reschedule",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Quick Reschedule"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "ba13c104-97a2-4643-857a-cbde16e5baed",
+                    "leftValue": "={{$json.intent}}",
+                    "rightValue": "complete_reminder",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Complete Reminder"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "315c87e3-8605-45a3-a8b9-e876ea662efe",
+                    "leftValue": "={{$json.intent}}",
+                    "rightValue": "list_pending",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "List Pending"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "8f263342-3bff-480f-bf39-7c4fffe6689a",
+                    "leftValue": "={{$json.intent}}",
+                    "rightValue": "open_calendar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Open Calendar"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -496,
+        144
+      ],
+      "id": "d6e5e261-48a5-48fb-98a5-c73f42d13e12",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "jsCode": "const targetDate = $node[\"Parse AI JSON\"].json.target_date;\nconst items = $input.all();\n\nconst prettyDate = new Intl.DateTimeFormat(\"ru-RU\", {\n  day: \"numeric\",\n  month: \"long\"\n}).format(new Date(targetDate + \"T00:00:00\"));\n\nconst filtered = items.filter((item) => {\n  return item.json.local_date === targetDate;\n});\n\nlet text = \"\";\n\nif (filtered.length === 0) {\n  text = \"На этот день напоминаний нет.\";\n} else {\n  const lines = filtered.map((item) => {\n    const icon = item.json.reminder_type === \"event\" ? \"📅\" : \"📝\";\n    return icon + \" \" + item.json.local_time + \" — \" + item.json.task;\n  });\n\n  text = \"Список задач на \" + prettyDate + \":\\n\\n\" + lines.join(\"\\n\");\n}\n\nreturn [{ json: { text } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        -352
+      ],
+      "id": "9b6b8d2f-0609-4f11-af3c-3442f0d34e00",
+      "name": "Format Day List"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  reminder_type,\n  task,\n  status,\n  remind_at,\n  to_char(remind_at AT TIME ZONE '{{$node[\"If Timezone not exist\"].json.timezone}}', 'YYYY-MM-DD') AS local_date,\n  to_char(remind_at AT TIME ZONE '{{$node[\"If Timezone not exist\"].json.timezone}}', 'HH24:MI') AS local_time\nFROM tg_reminders\nWHERE telegram_user_id = {{$node[\"Telegram Trigger\"].json.message.from.id}}\n  AND status = 'pending'\nORDER BY remind_at ASC;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        912,
+        -352
+      ],
+      "id": "7d55bf55-3c5c-4133-8e1a-a429af75f9b0",
+      "name": "Read Day List",
+      "credentials": {
+        "postgres": {
+          "id": "0b0fkAGEHTVoBVeF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node[\"Telegram Trigger\"].json.message.chat.id}}",
+        "text": "={{$json.text}}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1328,
+        -352
+      ],
+      "id": "bf9c383e-cbdf-4e7b-9af1-8310f9188274",
+      "name": "Send a text message4",
+      "webhookId": "6552ce07-d3ad-4139-8b2c-59ef4cd04e39",
+      "credentials": {
+        "telegramApi": {
+          "id": "UvuylJkT42ZGyPBr",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6b3aa76d-cba5-4ebc-8b81-37dc30bca093",
+              "leftValue": "={{$json.message.voice.file_id}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1008,
+        -1328
+      ],
+      "id": "3bab7c64-2d3e-44eb-8132-2ea9885885da",
+      "name": "If Voice"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{$json.message.voice.file_id}}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1328,
+        -592
+      ],
+      "id": "d9c2aa20-c3b4-4ffd-9e18-b49ae2e89f8c",
+      "name": "Get a file",
+      "webhookId": "7ea6b8b6-81fd-4baa-b7b8-aec73ff1a8c5",
+      "credentials": {
+        "telegramApi": {
+          "id": "UvuylJkT42ZGyPBr",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        -912,
+        -592
+      ],
+      "id": "20bb9694-06eb-4631-b292-ed079707d56e",
+      "name": "Transcribe a recording",
+      "credentials": {
+        "openAiApi": {
+          "id": "dzPAAiZslOz2luZC",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8befa712-1b92-471b-b408-e91ebcae2225",
+              "name": "message_text",
+              "value": "={{ $node[\"Transcribe a recording\"].json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "f3a29e1a-deb5-4d83-8492-f3815d87eeb8",
+              "name": "=timezone_set",
+              "value": "={{ $json.timezone_set }}",
+              "type": "boolean"
+            },
+            {
+              "id": "1e21eb9f-afbf-4dd4-b021-b05fb4c65f5e",
+              "name": "timezone",
+              "value": "={{ $json.timezone }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -256,
+        -592
+      ],
+      "id": "dd240233-9e99-4ef7-8c89-9b9ac0df81de",
+      "name": "Prepare Voice Text"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT *\nFROM tg_reminder_users\nWHERE telegram_user_id = {{$node[\"Telegram Trigger\"].json.message.from.id}}\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -592,
+        -592
+      ],
+      "id": "ce751d73-e237-4300-b44d-e6aa72f0bb3b",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "0b0fkAGEHTVoBVeF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8befa712-1b92-471b-b408-e91ebcae2225",
+              "name": "message_text",
+              "value": "={{ $node[\"Telegram Trigger\"].json.message.text }}",
+              "type": "string"
+            },
+            {
+              "id": "f3a29e1a-deb5-4d83-8492-f3815d87eeb8",
+              "name": "=timezone_set",
+              "value": "={{ $json.timezone_set }}",
+              "type": "boolean"
+            },
+            {
+              "id": "64b0f05a-df30-4d64-84c4-446a45c4afd1",
+              "name": "timezone",
+              "value": "={{ $json.timezone }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -144,
+        -848
+      ],
+      "id": "ac269a94-9ffc-4433-9c42-88c3d66d7441",
+      "name": "Prepare Voice Text1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, task, reminder_type, remind_at\nFROM tg_reminders\nWHERE telegram_user_id = {{$node[\"Telegram Trigger\"].json.message.from.id}}\n  AND status = 'pending'\nORDER BY remind_at ASC\nLIMIT 20;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        560,
+        192
+      ],
+      "id": "e93dbaf8-e9fb-4b64-a05c-b24a56c7464a",
+      "name": "Execute a SQL query2",
+      "credentials": {
+        "postgres": {
+          "id": "0b0fkAGEHTVoBVeF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst candidates = items.map(item => ({\n  id: item.json.id,\n  task: item.json.task,\n  reminder_type: item.json.reminder_type,\n  remind_at: item.json.remind_at,\n}));\n\nreturn [{\n  json: {\n    candidates_json: JSON.stringify(candidates)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        192
+      ],
+      "id": "81af27ec-97a2-4950-bbd9-eafe66078883",
+      "name": "Prepare Candidates"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are a strict JSON matcher for a Telegram reminder assistant.\n\nAlways respond ONLY with valid JSON.\nNever output explanations, markdown, or any text outside JSON.\n\nYour task is to find the best matching reminder from the candidate list.\n\nUser query:\n{{$node[\"Parse AI JSON\"].json.task_query}}\n\nCandidate reminders:\n{{$json.candidates_json}}\n\nRules:\n- Match by meaning, not only exact text.\n- Small spelling differences, word order changes, singular/plural differences, and minor wording differences are acceptable.\n- Prefer the closest semantic match.\n- If there are several similar matches, prefer the nearest upcoming one.\n- Only choose from the provided candidate reminders.\n- If nothing is a good enough match, return null.\n\nReturn ONLY one of these JSON formats:\n\n{\n  \"matched_id\": 123,\n  \"matched_task\": \"Reminder text exactly as in candidates\"\n}\n\nor\n\n{\n  \"matched_id\": null,\n  \"matched_task\": null\n}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1008,
+        192
+      ],
+      "id": "7307f0c4-2e9f-488b-b3ff-d936d79f2632",
+      "name": "Match Reminder",
+      "credentials": {
+        "openAiApi": {
+          "id": "dzPAAiZslOz2luZC",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ddc143a2-8305-4154-9e5b-806018f25750",
+              "leftValue": "={{ $json.matched_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1568,
+        192
+      ],
+      "id": "789eae78-45b2-4a44-9300-a06de8648730",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node[\"Telegram Trigger\"].json.message.chat.id}}",
+        "text": "=Удалено: {{$json.task}}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2672,
+        32
+      ],
+      "id": "372befcb-5516-49ba-a2b4-832a040fa65b",
+      "name": "Send a text message5",
+      "webhookId": "d960da48-cbe3-459f-a8e6-a6e2bb9c04b5",
+      "credentials": {
+        "telegramApi": {
+          "id": "UvuylJkT42ZGyPBr",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node[\"Telegram Trigger\"].json.message.chat.id}}",
+        "text": "=Совпадений не найдено",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2672,
+        256
+      ],
+      "id": "f9847c9f-f4cb-4c33-94a1-4ff26c785acf",
+      "name": "Send a text message6",
+      "webhookId": "d960da48-cbe3-459f-a8e6-a6e2bb9c04b5",
+      "credentials": {
+        "telegramApi": {
+          "id": "UvuylJkT42ZGyPBr",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tg_reminders\nSET\n  status = 'deleted',\n  updated_at = NOW()\nWHERE id = {{$json.matched_id}}\nRETURNING id, task;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1792,
+        32
+      ],
+      "id": "866dc992-773e-4097-9c06-225a5563115e",
+      "name": "Delete Reminder",
+      "credentials": {
+        "postgres": {
+          "id": "0b0fkAGEHTVoBVeF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, task, reminder_type, remind_at\nFROM tg_reminders\nWHERE telegram_user_id = {{$node[\"Telegram Trigger\"].json.message.from.id}}\n  AND status = 'pending'\nORDER BY remind_at ASC\nLIMIT 20;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        560,
+        672
+      ],
+      "id": "04a002c5-1bb4-404f-9f33-fb1ce718d724",
+      "name": "Execute a SQL query3",
+      "credentials": {
+        "postgres": {
+          "id": "0b0fkAGEHTVoBVeF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst candidates = items.map(item => ({\n  id: item.json.id,\n  task: item.json.task,\n  reminder_type: item.json.reminder_type,\n  remind_at: item.json.remind_at,\n}));\n\nreturn [{\n  json: {\n    candidates_json: JSON.stringify(candidates)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        672
+      ],
+      "id": "53acd45a-f89b-4077-99c6-ea2b95445dd7",
+      "name": "Prepare Candidates1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are a strict JSON matcher for a Telegram reminder assistant.\n\nAlways respond ONLY with valid JSON.\nNever output explanations, markdown, or any text outside JSON.\n\nYour task is to find the best matching reminder from the candidate list.\n\nUser query:\n{{$node[\"Parse AI JSON\"].json.task_query}}\n\nCandidate reminders:\n{{$json.candidates_json}}\n\nRules:\n- Match by meaning, not only exact text.\n- Small spelling differences, word order changes, singular/plural differences, and minor wording differences are acceptable.\n- Prefer the closest semantic match.\n- If there are several similar matches, prefer the nearest upcoming one.\n- Only choose from the provided candidate reminders.\n- If nothing is a good enough match, return null.\n\nReturn ONLY one of these JSON formats:\n\n{\n  \"matched_id\": 123,\n  \"matched_task\": \"Reminder text exactly as in candidates\"\n}\n\nor\n\n{\n  \"matched_id\": null,\n  \"matched_task\": null\n}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1008,
+        672
+      ],
+      "id": "b5636906-fc3d-43d0-a2b6-4f5463322d11",
+      "name": "Match Reminder1",
+      "credentials": {
+        "openAiApi": {
+          "id": "dzPAAiZslOz2luZC",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ddc143a2-8305-4154-9e5b-806018f25750",
+              "leftValue": "={{ $json.matched_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1568,
+        672
+      ],
+      "id": "cde0c2e3-2cc5-45bb-ac62-5bd518e03609",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node[\"Telegram Trigger\"].json.message.chat.id}}",
+        "text": "={{$json.text}}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2672,
+        512
+      ],
+      "id": "c8f6df79-a4d1-495c-8b2e-33af63648351",
+      "name": "Send a text message7",
+      "webhookId": "d960da48-cbe3-459f-a8e6-a6e2bb9c04b5",
+      "credentials": {
+        "telegramApi": {
+          "id": "UvuylJkT42ZGyPBr",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node[\"Telegram Trigger\"].json.message.chat.id}}",
+        "text": "=Совпадений не найдено",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2672,
+        752
+      ],
+      "id": "09645337-9fc1-45c1-b35e-1b606158afb2",
+      "name": "Send a text message8",
+      "webhookId": "d960da48-cbe3-459f-a8e6-a6e2bb9c04b5",
+      "credentials": {
+        "telegramApi": {
+          "id": "UvuylJkT42ZGyPBr",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const task = $json.task;\nconst remindAt = new Date($json.remind_at);\n\nconst timezone = $node[\"If Timezone not exist\"].json.timezone;\n\nconst time = new Intl.DateTimeFormat(\"ru-RU\", {\ntimeZone: timezone,\nhour: \"2-digit\",\nminute: \"2-digit\",\nhour12: false\n}).format(remindAt);\n\nconst date = new Intl.DateTimeFormat(\"ru-RU\", {\ntimeZone: timezone,\nday: \"numeric\",\nmonth: \"long\"\n}).format(remindAt);\n\nconst text =\n\"Обновлено: \"+task+\"\\nНовое время: \"+date+\" в \"+time;\n\nreturn [{ json: { text } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2368,
+        512
+      ],
+      "id": "571d2952-d2ad-44ff-98c2-84630b0b22d8",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.output[0].content[0].text;\nconst parsed = JSON.parse(raw);\n\nreturn [{\n  json: {\n    matched_id: parsed.matched_id !== null ? String(parsed.matched_id) : null,\n    matched_task: parsed.matched_task\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        192
+      ],
+      "id": "d9750934-ba0b-4da6-a6bb-946bef65ed99",
+      "name": "Parse Match JSON"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.output[0].content[0].text;\nconst parsed = JSON.parse(raw);\n\nreturn [{\n  json: {\n    matched_id: parsed.matched_id !== null ? String(parsed.matched_id) : null,\n    matched_task: parsed.matched_task\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        672
+      ],
+      "id": "c0fa1fcf-db30-44ac-8e76-e985e27decdd",
+      "name": "Parse Match JSON1"
+    },
+    {
+      "parameters": {
+        "jsCode": "let task = $json.task;\n\nif (task) {\n  task = task.trim();\n  task = task.charAt(0).toUpperCase() + task.slice(1);\n  $json.task = task;\n}\n\nreturn $input.item;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -688,
+        208
+      ],
+      "id": "00208dc1-aa44-469c-ab9c-1fe7b4cbd9f7",
+      "name": "Normalize Task Title"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\nlet task = item.task;\n\nif (typeof task === \"string\" && task.length > 0) {\n  task = task.trim();\n  task = task.charAt(0).toUpperCase() + task.slice(1);\n}\n\nreturn [\n  {\n    json: {\n      ...item,\n      task: task\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2096,
+        512
+      ],
+      "id": "52748fd6-770e-4cf5-9e8f-a5dc99335f30",
+      "name": "Normalize Task Title1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tg_reminders\nSET\n  task = COALESCE(\n    {{$node[\"Parse AI JSON\"].json.new_task ? \"'\" + $node[\"Parse AI JSON\"].json.new_task.replace(/'/g,\"''\") + \"'\" : \"NULL\"}},\n    task\n  ),\n  remind_at = COALESCE(\n    {{$node[\"Parse AI JSON\"].json.new_remind_at ? \"'\" + $node[\"Parse AI JSON\"].json.new_remind_at + \"'\" : \"NULL\"}},\n    remind_at\n  ),\n  reminder_sent_at = CASE\n    WHEN {{$node[\"Parse AI JSON\"].json.new_remind_at ? \"TRUE\" : \"FALSE\"}} THEN NULL\n    ELSE reminder_sent_at\n  END,\n  updated_at = NOW()\nWHERE id = {{$json.matched_id}}\nRETURNING id, task, remind_at, reminder_type;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1792,
+        512
+      ],
+      "id": "a369b438-d1f9-4dd0-8e27-67cdb5b70d00",
+      "name": "Edit Reminder",
+      "credentials": {
+        "postgres": {
+          "id": "0b0fkAGEHTVoBVeF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  id,\n  task,\n  reminder_type,\n  remind_at,\n  status,\n  reminder_sent_at,\n  updated_at,\n  created_at\nFROM tg_reminders\nWHERE telegram_user_id = {{$node[\"Telegram Trigger\"].json.message.from.id}}\n  AND status <> 'deleted'\nORDER BY\n  GREATEST(\n    COALESCE(reminder_sent_at, TIMESTAMP '1970-01-01'),\n    COALESCE(updated_at, TIMESTAMP '1970-01-01'),\n    COALESCE(created_at, TIMESTAMP '1970-01-01')\n  ) DESC\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        528,
+        1104
+      ],
+      "id": "00e8cfb4-bc93-4fa6-af46-4b91aec9927d",
+      "name": "Find Last Relevant Reminder",
+      "credentials": {
+        "postgres": {
+          "id": "0b0fkAGEHTVoBVeF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tg_reminders\nSET\n  remind_at = '{{$node[\"Parse AI JSON\"].json.new_remind_at}}',\n  reminder_sent_at = NULL,\n  updated_at = NOW(),\n  status = CASE\n    WHEN status = 'completed' THEN 'pending'\n    ELSE status\n  END\nWHERE id = {{$node[\"Find Last Relevant Reminder\"].json.id}}\nRETURNING id, task, remind_at, reminder_type, status;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        800,
+        1104
+      ],
+      "id": "da78fe47-f274-495a-9370-f7fb216560aa",
+      "name": "Quick Reschedule Update",
+      "credentials": {
+        "postgres": {
+          "id": "0b0fkAGEHTVoBVeF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node[\"Telegram Trigger\"].json.message.chat.id}}",
+        "text": "={{$json.text}}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1440,
+        1104
+      ],
+      "id": "67c9f534-72e0-4ad5-a7d7-cc9cf904466a",
+      "name": "Send a text message9",
+      "webhookId": "69f101b8-d67f-4a6c-8479-195e3ba71a88",
+      "credentials": {
+        "telegramApi": {
+          "id": "UvuylJkT42ZGyPBr",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const task = $json.task;\nconst remindAt = new Date($json.remind_at);\n\nconst timezone = $node[\"If Timezone not exist\"].json.timezone || \"UTC\";\n\nconst localDate = new Intl.DateTimeFormat(\"en-CA\", {\n  timeZone: timezone,\n  year: \"numeric\",\n  month: \"2-digit\",\n  day: \"2-digit\",\n}).format(remindAt);\n\nconst todayDate = new Intl.DateTimeFormat(\"en-CA\", {\n  timeZone: timezone,\n  year: \"numeric\",\n  month: \"2-digit\",\n  day: \"2-digit\",\n}).format(new Date());\n\nconst time = new Intl.DateTimeFormat(\"ru-RU\", {\n  timeZone: timezone,\n  hour: \"2-digit\",\n  minute: \"2-digit\",\n  hour12: false,\n}).format(remindAt);\n\nlet datePart = \"\";\n\nif (localDate === todayDate) {\n  datePart = \"сегодня\";\n} else {\n  datePart = new Intl.DateTimeFormat(\"ru-RU\", {\n    timeZone: timezone,\n    day: \"numeric\",\n    month: \"long\",\n  }).format(remindAt);\n}\n\nconst type = $json.reminder_type === \"event\" ? \"событие\" : \"задачу\";\n\nconst text =\n  \"Перенесла \" + type + \": \" + task + \"\\n\" +\n  \"Новое время: \" + datePart + \" в \" + time;\n\nreturn [{ json: { text } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        1104
+      ],
+      "id": "367c8e82-f10a-44a7-8ea1-e82b75ff4ffa",
+      "name": "Format Quick Reschedule Reply"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, task, reminder_type, remind_at, status\nFROM tg_reminders\nWHERE telegram_user_id = {{$node[\"Telegram Trigger\"].json.message.from.id}}\nAND status = 'pending'\nORDER BY remind_at ASC\nLIMIT 20;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        528,
+        1472
+      ],
+      "id": "f042c717-43a6-41ab-96c9-1fa1bc3c3c5b",
+      "name": "Find Task Candidates To Complete",
+      "credentials": {
+        "postgres": {
+          "id": "0b0fkAGEHTVoBVeF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst candidates = items.map(item => ({\n  id: item.json.id,\n  task: item.json.task,\n  reminder_type: item.json.reminder_type,\n  remind_at: item.json.remind_at,\n  status: item.json.status\n}));\n\nreturn [{\n  json: {\n    candidates_json: JSON.stringify(candidates)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        1472
+      ],
+      "id": "1f04d53d-806b-43e0-9bbe-f54d503975f5",
+      "name": "Prepare Complete Candidates"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are a strict JSON matcher for a Telegram reminder assistant.\n\nAlways respond ONLY with valid JSON.\nNever output explanations, markdown, or any text outside JSON.\n\nYour task is to find the best matching reminder from the candidate list.\n\nUser query:\n{{$node[\"Parse AI JSON\"].json.task_query}}\n\nCandidate reminders:\n{{$json.candidates_json}}\n\nRules:\n- Match by meaning, not only exact text.\n- Small spelling differences, word order changes, singular/plural differences, and minor wording differences are acceptable.\n- Prefer the closest semantic match.\n- If there are several similar matches, prefer the nearest upcoming one.\n- Only choose from the provided candidate reminders.\n- If nothing is a good enough match, return null.\n\nReturn ONLY one of these JSON formats:\n\n{\n  \"matched_id\": 123,\n  \"matched_task\": \"Reminder text exactly as in candidates\"\n}\n\nor\n\n{\n  \"matched_id\": null,\n  \"matched_task\": null\n}\n\n\nMatch by meaning, not only by exact text.\n\nTreat shortened natural completion phrases as equivalent to infinitive reminder texts.\n\nExamples:\n- \"Таблицу сделал\" matches \"Сделать таблицу для расчёта доплат ТПА\"\n- \"Таблицу для расчета сделал\" matches \"Сделать таблицу для расчёта доплат ТПА\"\n- \"Выгрузку сделал\" matches \"Сделать выгрузку по QQ\"\n- \"Созвон прошел\" matches \"Созвон\"\n- \"Матч закончился\" matches \"Матч\"\n\nPrefer the most semantically specific candidate.\nIgnore minor wording differences, case, and natural speech variations."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1008,
+        1472
+      ],
+      "id": "14cf37a9-4784-43b6-a464-0b54284dca15",
+      "name": "Match Reminder2",
+      "credentials": {
+        "openAiApi": {
+          "id": "dzPAAiZslOz2luZC",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.output[0].content[0].text;\nconst parsed = JSON.parse(raw);\n\nreturn [{\n  json: {\n    matched_id: parsed.matched_id !== null ? String(parsed.matched_id) : null,\n    matched_task: parsed.matched_task\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        1472
+      ],
+      "id": "3ab41116-88b3-46db-973a-14c699cecf1a",
+      "name": "Parse Complete Match JSON"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3f12c618-3e2f-4b96-878a-f693c043e1c2",
+              "leftValue": "={{ $json.matched_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1568,
+        1472
+      ],
+      "id": "499ae502-41aa-4227-9f35-070208a2a2dc",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tg_reminders\nSET\n  status = 'completed',\n  completed_at = NOW(),\n  updated_at = NOW()\nWHERE id = {{$json.matched_id}}\nRETURNING id, task;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1792,
+        1344
+      ],
+      "id": "742bf3b9-68f3-4b9d-8a3f-b44fde24730d",
+      "name": "Complete Reminder",
+      "credentials": {
+        "postgres": {
+          "id": "0b0fkAGEHTVoBVeF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node[\"Telegram Trigger\"].json.message.chat.id}}",
+        "text": "={{$json.text}}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2336,
+        1344
+      ],
+      "id": "d519ab0b-3913-46e4-a21e-b5dfe241e7e9",
+      "name": "Send a text message10",
+      "webhookId": "a51a0a6a-dc04-4342-bf7f-3bc76ac197ec",
+      "credentials": {
+        "telegramApi": {
+          "id": "UvuylJkT42ZGyPBr",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const task = $json.task;\n\nreturn [{\n  json: {\n    text: \"Отмечено как завершённое ✅\\n\" + task\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2064,
+        1344
+      ],
+      "id": "4b7f7aae-5827-42c0-90da-82fc45b149bc",
+      "name": "Format Complete Reply"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  id,\n  task,\n  reminder_type,\n  remind_at,\n  is_recurring,\n  status\nFROM tg_reminders\nWHERE telegram_user_id = {{$node[\"Telegram Trigger\"].json.message.from.id}}\n  AND status = 'pending'\n  AND remind_at < NOW()\nORDER BY remind_at ASC;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        528,
+        1872
+      ],
+      "id": "9156358f-512d-419e-9548-6488d00d827f",
+      "name": "Get Pending Reminders",
+      "credentials": {
+        "postgres": {
+          "id": "0b0fkAGEHTVoBVeF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nif (items.length === 0) {\n  return [\n    {\n      json: {\n        text: \"У тебя нет активных напоминаний ✅\"\n      }\n    }\n  ];\n}\n\nconst timezone = $node[\"Execute a SQL query1\"].json.timezone || \"UTC\";\nconst now = new Date();\n\nfunction formatLocalDateKey(date, tz) {\n  return new Intl.DateTimeFormat(\"en-CA\", {\n    timeZone: tz,\n    year: \"numeric\",\n    month: \"2-digit\",\n    day: \"2-digit\"\n  }).format(date);\n}\n\nfunction formatTime(date, tz) {\n  return new Intl.DateTimeFormat(\"ru-RU\", {\n    timeZone: tz,\n    hour: \"2-digit\",\n    minute: \"2-digit\",\n    hour12: false\n  }).format(date);\n}\n\nfunction formatDayMonth(date, tz) {\n  return new Intl.DateTimeFormat(\"ru-RU\", {\n    timeZone: tz,\n    day: \"numeric\",\n    month: \"long\"\n  }).format(date);\n}\n\nconst nowKey = formatLocalDateKey(now, timezone);\n\nconst overdue = [];\nconst upcoming = [];\n\nfor (const item of items) {\n  const task = item.json.task;\n  const type = item.json.reminder_type;\n  const remindAt = new Date(item.json.remind_at);\n  const icon = type === \"event\" ? \"📅\" : \"📝\";\n  const recurring = item.json.is_recurring ? \" 🔁\" : \"\";\n\n  const remindKey = formatLocalDateKey(remindAt, timezone);\n  const time = formatTime(remindAt, timezone);\n\n  let prefix = \"\";\n\n  if (remindKey === nowKey) {\n    prefix = time;\n  } else {\n    prefix = formatDayMonth(remindAt, timezone) + \" в \" + time;\n  }\n\n  const line = icon + recurring + \" \" + prefix + \" — \" + task;\n\n  if (remindAt < now) {\n    overdue.push(line);\n  } else {\n    upcoming.push(line);\n  }\n}\n\nlet text = \"\";\n\nif (overdue.length > 0) {\n  text += \"Вот что у тебя осталось:\\n\\n\";\n  text += overdue.join(\"\\n\");\n}\n\nif (upcoming.length > 0) {\n  if (overdue.length > 0) {\n    text += \"\\n\\n\";\n  }\n  text += \"📋 Активные:\\n\";\n  text += upcoming.join(\"\\n\");\n}\n\nreturn [\n  {\n    json: {\n      text: text\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        784,
+        1872
+      ],
+      "id": "a656f5f0-a051-4861-97d8-485aed29069f",
+      "name": "Format Pending List"
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node[\"Telegram Trigger\"].json.message.chat.id}}",
+        "text": "={{$json.text}}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1152,
+        1872
+      ],
+      "id": "79538611-af65-4b8e-b9a8-3e63ee724b56",
+      "name": "Send a text message11",
+      "webhookId": "4de97f64-5526-4c3c-8aa4-4598a0272c73",
+      "credentials": {
+        "telegramApi": {
+          "id": "UvuylJkT42ZGyPBr",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node[\"Telegram Trigger\"].json.message.chat.id}}",
+        "text": "Открываю календарь 👇",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "📅 Открыть календарь",
+                    "additionalFields": {
+                      "web_app": {
+                        "url": "https://rm.easypoly.trade/airi-calendar/"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        544,
+        2304
+      ],
+      "id": "f2f17691-18cd-4506-98b8-0e303ff65d5d",
+      "name": "Send a text message12",
+      "webhookId": "8530b1a2-31bf-4ec0-b0aa-d484c25d2192",
+      "credentials": {
+        "telegramApi": {
+          "id": "UvuylJkT42ZGyPBr",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "If Voice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query1": {
+      "main": [
+        [
+          {
+            "node": "Prepare Voice Text1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Timezone": {
+      "main": [
+        [
+          {
+            "node": "Write Timezone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Parser": {
+      "main": [
+        [
+          {
+            "node": "Parse AI JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI JSON": {
+      "main": [
+        [
+          {
+            "node": "Normalize Task Title",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text or callback": {
+      "main": [
+        [
+          {
+            "node": "Parse Callback",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If Start",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer Query a callback": {
+      "main": [
+        []
+      ]
+    },
+    "Execute a SQL query4": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query5": {
+      "main": [
+        [
+          {
+            "node": "Edit Message and Remove Button",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Done": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Callback": {
+      "main": [
+        [
+          {
+            "node": "IF Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Start": {
+      "main": [
+        [
+          {
+            "node": "Save User",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute a SQL query1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save User": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Timezone not exist": {
+      "main": [
+        [
+          {
+            "node": "Parse Timezone",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Timezone": {
+      "main": [
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Message and Remove Button": {
+      "main": [
+        [
+          {
+            "node": "Answer Query a callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Reminder": {
+      "main": [
+        [
+          {
+            "node": "Send a text message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Create Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Day List",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute a SQL query2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute a SQL query3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Find Last Relevant Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Find Task Candidates To Complete",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Pending Reminders",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message12",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Day List": {
+      "main": [
+        [
+          {
+            "node": "Format Day List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Day List": {
+      "main": [
+        [
+          {
+            "node": "Send a text message4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Voice": {
+      "main": [
+        [
+          {
+            "node": "Get a file",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Text or callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a file": {
+      "main": [
+        [
+          {
+            "node": "Transcribe a recording",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribe a recording": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Voice Text": {
+      "main": [
+        [
+          {
+            "node": "If Timezone not exist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Prepare Voice Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Voice Text1": {
+      "main": [
+        [
+          {
+            "node": "If Timezone not exist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query2": {
+      "main": [
+        [
+          {
+            "node": "Prepare Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Candidates": {
+      "main": [
+        [
+          {
+            "node": "Match Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Reminder": {
+      "main": [
+        [
+          {
+            "node": "Parse Match JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Delete Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Reminder": {
+      "main": [
+        [
+          {
+            "node": "Send a text message5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query3": {
+      "main": [
+        [
+          {
+            "node": "Prepare Candidates1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Candidates1": {
+      "main": [
+        [
+          {
+            "node": "Match Reminder1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Reminder1": {
+      "main": [
+        [
+          {
+            "node": "Parse Match JSON1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Edit Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Send a text message7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Match JSON": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Match JSON1": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Task Title": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Reminder": {
+      "main": [
+        [
+          {
+            "node": "Normalize Task Title1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Task Title1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Last Relevant Reminder": {
+      "main": [
+        [
+          {
+            "node": "Quick Reschedule Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quick Reschedule Update": {
+      "main": [
+        [
+          {
+            "node": "Format Quick Reschedule Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Quick Reschedule Reply": {
+      "main": [
+        [
+          {
+            "node": "Send a text message9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Task Candidates To Complete": {
+      "main": [
+        [
+          {
+            "node": "Prepare Complete Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Complete Candidates": {
+      "main": [
+        [
+          {
+            "node": "Match Reminder2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Reminder2": {
+      "main": [
+        [
+          {
+            "node": "Parse Complete Match JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Complete Match JSON": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Complete Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Complete Reminder": {
+      "main": [
+        [
+          {
+            "node": "Format Complete Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Complete Reply": {
+      "main": [
+        [
+          {
+            "node": "Send a text message10",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Pending Reminders": {
+      "main": [
+        [
+          {
+            "node": "Format Pending List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Pending List": {
+      "main": [
+        [
+          {
+            "node": "Send a text message11",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "17c03ebc-fe37-4f6f-8b9a-d6c9a9d07b0a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e577a1b601e02707e095a5b12ec7127cd4c2b17ebaebb5bbf140661926b3c25a"
+  },
+  "id": "XDQ8YJ1yrPdnpjZ0",
+  "tags": []
+}

@@ -1,0 +1,478 @@
+{
+  "name": "Reminder Sender",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds",
+              "secondsInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        96,
+        -80
+      ],
+      "id": "3a1037ed-f911-4555-9ee4-198c0e32918c",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tg_reminders\nSET\n  reminder_sent_at = NOW(),\n  last_sent_to_user = TRUE,\n  updated_at = NOW()\nWHERE id = {{$node[\"Task or Event\"].json.id}};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1456,
+        -352
+      ],
+      "id": "69cba705-f7f5-4283-8d4d-7e691086237d",
+      "name": "Status Sent",
+      "credentials": {
+        "postgres": {
+          "id": "0b0fkAGEHTVoBVeF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT *\nFROM tg_reminders\nWHERE status = 'pending'\n  AND remind_at <= NOW()\n  AND reminder_sent_at IS NULL\nORDER BY remind_at ASC\nLIMIT 20;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        272,
+        -80
+      ],
+      "id": "c6901045-7dfd-4e93-a8c2-7eaed053d711",
+      "name": "Read reminders",
+      "credentials": {
+        "postgres": {
+          "id": "0b0fkAGEHTVoBVeF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "5babdba2-0fcc-4049-91ca-73e96f78dd00",
+              "leftValue": "={{$json.reminder_type}}",
+              "rightValue": "task",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        432,
+        -80
+      ],
+      "id": "1d87ffa2-821c-433c-a97f-1be2344c028b",
+      "name": "Task or Event"
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node[\"Task or Event\"].json.telegram_chat_id}}",
+        "text": "=📅 Task: {{$node[\"Task or Event\"].json.task}}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "✅ Выполнено",
+                    "additionalFields": {
+                      "callback_data": "=done:{{$node[\"Task or Event\"].json.id}}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        784,
+        -336
+      ],
+      "id": "10d0e781-6730-4171-ba0c-b7b8f9742531",
+      "name": "Send task",
+      "webhookId": "a73817a1-06ae-4c3a-9c6c-f4256e6c0ee5",
+      "credentials": {
+        "telegramApi": {
+          "id": "UvuylJkT42ZGyPBr",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node[\"Task or Event\"].json.telegram_chat_id}}",
+        "text": "=🔔 Event: {{$node[\"Task or Event\"].json.task}}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        784,
+        160
+      ],
+      "id": "3985471a-6464-4b50-ad12-aefe416f0ec9",
+      "name": "Send Event",
+      "webhookId": "1ef96084-3af0-4e0d-bb25-bedb9fb82d89",
+      "credentials": {
+        "telegramApi": {
+          "id": "UvuylJkT42ZGyPBr",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tg_reminders\nSET\n  status = 'completed',\n  reminder_sent_at = NOW(),\n  last_sent_to_user = TRUE,\n  updated_at = NOW()\nWHERE id = {{$node[\"Task or Event\"].json.id}};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1456,
+        208
+      ],
+      "id": "6090320f-d553-46f3-889b-ec3a5a522c0c",
+      "name": "Status Sent1",
+      "credentials": {
+        "postgres": {
+          "id": "0b0fkAGEHTVoBVeF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "330a0c67-4708-48d3-8047-7d5359462f60",
+              "leftValue": "={{$json.is_recurring}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        944,
+        -336
+      ],
+      "id": "43e4ade3-658c-4cee-b36c-85038846ce1e",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "46b152a1-c925-488c-9cd7-b2c03a5b0041",
+              "leftValue": "={{$json.is_recurring}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        944,
+        160
+      ],
+      "id": "062a125b-0818-4be0-a96c-a3dfc10fd840",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const { RRule } = require('rrule');\n\nconst rruleString = $json.rrule;\nconst dtstart = new Date($json.dtstart);\nconst currentRemindAt = new Date($json.remind_at);\n\nconst rule = RRule.fromString(rruleString);\nrule.options.dtstart = dtstart;\n\nconst next = rule.after(currentRemindAt, false);\n\nreturn [{\n  json: {\n    ...$json,\n    next_remind_at: next.toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        -80
+      ],
+      "id": "55bc1e1e-5e6e-4f31-9a03-6e28b1f9675e",
+      "name": "Calculate Next Occurrence"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tg_reminders\nSET\n  remind_at = '{{$json.next_remind_at}}',\n  reminder_sent_at = NOW(),\n  updated_at = NOW()\nWHERE id = {{$json.id}};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1456,
+        -80
+      ],
+      "id": "a87dda86-06c1-46a0-a1b1-1d6a3d5c28b0",
+      "name": "Update Recurring Reminder",
+      "credentials": {
+        "postgres": {
+          "id": "0b0fkAGEHTVoBVeF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tg_reminders\nSET last_sent_to_user = FALSE\nWHERE telegram_user_id = {{$node[\"Task or Event\"].json.telegram_user_id}};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        608,
+        160
+      ],
+      "id": "50593856-f250-4055-a1d1-5994f1686808",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "0b0fkAGEHTVoBVeF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tg_reminders\nSET last_sent_to_user = FALSE\nWHERE telegram_user_id = {{$node[\"Task or Event\"].json.telegram_user_id}};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        624,
+        -336
+      ],
+      "id": "f5ddfe37-0d47-49f2-b0ce-54469810c3f0",
+      "name": "Execute a SQL query1",
+      "credentials": {
+        "postgres": {
+          "id": "0b0fkAGEHTVoBVeF",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read reminders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read reminders": {
+      "main": [
+        [
+          {
+            "node": "Task or Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Task or Event": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send task": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Event": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Calculate Next Occurrence",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Status Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Calculate Next Occurrence",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Status Sent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Next Occurrence": {
+      "main": [
+        [
+          {
+            "node": "Update Recurring Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Send Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query1": {
+      "main": [
+        [
+          {
+            "node": "Send task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "8aad250f-aacf-4359-a4af-6546e34b9a04",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e577a1b601e02707e095a5b12ec7127cd4c2b17ebaebb5bbf140661926b3c25a"
+  },
+  "id": "YnVRTfhnSq4Qtl1D",
+  "tags": []
+}
