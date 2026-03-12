@@ -170,6 +170,13 @@ function getTimezoneOffsetMinutes(timeZone) {
 }
 
 function getTimezoneDisplayName(timeZone) {
+  const aliases = getTimezoneAliases(timeZone);
+  if (aliases.length > 0) {
+    return aliases
+      .slice(0, 2)
+      .join(" / ");
+  }
+
   const pretty = timeZone.replaceAll("_", " ");
   const parts = pretty.split("/");
   return parts[parts.length - 1];
@@ -191,35 +198,73 @@ function getTimezoneCurrentTime(timeZone) {
 
 
 const timezoneAliases = {
-  "Europe/Minsk": ["Minsk", "Минск"],
-  "Europe/Moscow": ["Moscow", "Москва"],
-  "Europe/Berlin": ["Berlin", "Берлин"],
-  "Europe/London": ["London", "Лондон"],
-  "Europe/Paris": ["Paris", "Париж"],
-  "Europe/Warsaw": ["Warsaw", "Варшава"],
-  "Europe/Kiev": ["Kyiv", "Kiev", "Киев"],
-  "Europe/Istanbul": ["Istanbul", "Стамбул"],
+  "Europe/Minsk": ["Minsk", "Минск", "Belarus", "Беларусь"],
+  "Europe/Moscow": ["Moscow", "Москва", "Russia", "Россия"],
+  "Europe/Kaliningrad": ["Kaliningrad", "Калининград"],
+  "Europe/Samara": ["Samara", "Самара"],
+  "Europe/Yekaterinburg": ["Yekaterinburg", "Екатеринбург"],
+  "Europe/Berlin": ["Berlin", "Берлин", "Germany", "Германия"],
+  "Europe/Paris": ["Paris", "Париж", "France", "Франция"],
+  "Europe/Rome": ["Rome", "Рим", "Italy", "Италия"],
+  "Europe/Madrid": ["Madrid", "Мадрид", "Spain", "Испания"],
+  "Europe/Warsaw": ["Warsaw", "Варшава", "Poland", "Польша"],
+  "Europe/Prague": ["Prague", "Прага", "Czech", "Чехия"],
+  "Europe/Vienna": ["Vienna", "Вена", "Austria", "Австрия"],
+  "Europe/Bucharest": ["Bucharest", "Бухарест", "Romania", "Румыния"],
+  "Europe/Athens": ["Athens", "Афины", "Greece", "Греция"],
+  "Europe/Helsinki": ["Helsinki", "Хельсинки", "Finland", "Финляндия"],
+  "Europe/Riga": ["Riga", "Рига", "Latvia", "Латвия"],
+  "Europe/Vilnius": ["Vilnius", "Вильнюс", "Lithuania", "Литва"],
+  "Europe/Tallinn": ["Tallinn", "Таллин", "Estonia", "Эстония"],
+  "Europe/London": ["London", "Лондон", "UK", "Britain", "Англия", "Великобритания"],
+  "Europe/Dublin": ["Dublin", "Дублин", "Ireland", "Ирландия"],
+  "Europe/Istanbul": ["Istanbul", "Стамбул", "Turkey", "Турция"],
+  "Europe/Kyiv": ["Kyiv", "Kiev", "Киев", "Украина", "Ukraine"],
+  "Europe/Zurich": ["Zurich", "Цюрих", "Switzerland", "Швейцария"],
 
-  "America/New_York": ["New York", "Нью-Йорк"],
-  "America/Chicago": ["Chicago", "Чикаго"],
-  "America/Denver": ["Denver", "Денвер"],
-  "America/Los_Angeles": ["Los Angeles", "Лос-Анджелес"],
-  "America/Toronto": ["Toronto", "Торонто"],
-  "America/Vancouver": ["Vancouver", "Ванкувер"],
-
-  "Asia/Dubai": ["Dubai", "Дубай"],
-  "Asia/Karachi": ["Karachi", "Карачи"],
-  "Asia/Kolkata": ["Mumbai", "Delhi", "Kolkata", "Мумбаи", "Дели", "Колката"],
-  "Asia/Bangkok": ["Bangkok", "Бангкок"],
+  "Asia/Dubai": ["Dubai", "Дубай", "UAE", "ОАЭ", "Emirates", "Эмираты"],
+  "Asia/Tbilisi": ["Tbilisi", "Тбилиси", "Georgia", "Грузия"],
+  "Asia/Yerevan": ["Yerevan", "Ереван", "Armenia", "Армения"],
+  "Asia/Baku": ["Baku", "Баку", "Azerbaijan", "Азербайджан"],
+  "Asia/Karachi": ["Karachi", "Карачи", "Pakistan", "Пакистан"],
+  "Asia/Almaty": ["Almaty", "Алматы", "Kazakhstan", "Казахстан"],
+  "Asia/Tashkent": ["Tashkent", "Ташкент", "Uzbekistan", "Узбекистан"],
+  "Asia/Bishkek": ["Bishkek", "Бишкек", "Kyrgyzstan", "Киргизия", "Кыргызстан"],
+  "Asia/Dushanbe": ["Dushanbe", "Душанбе", "Tajikistan", "Таджикистан"],
+  "Asia/Ashgabat": ["Ashgabat", "Ашхабад", "Turkmenistan", "Туркменистан"],
+  "Asia/Kolkata": ["Kolkata", "Calcutta", "Delhi", "Mumbai", "Индия", "India", "Дели", "Мумбаи"],
+  "Asia/Kathmandu": ["Kathmandu", "Катманду", "Nepal", "Непал"],
+  "Asia/Dhaka": ["Dhaka", "Дакка", "Bangladesh", "Бангладеш"],
+  "Asia/Bangkok": ["Bangkok", "Бангкок", "Thailand", "Таиланд"],
+  "Asia/Ho_Chi_Minh": ["Ho Chi Minh", "Saigon", "Хошимин", "Сайгон", "Vietnam", "Вьетнам"],
+  "Asia/Phnom_Penh": ["Phnom Penh", "Пномпень", "Cambodia", "Камбоджа"],
+  "Asia/Jakarta": ["Jakarta", "Джакарта", "Indonesia", "Индонезия"],
+  "Asia/Kuala_Lumpur": ["Kuala Lumpur", "Куала-Лумпур", "Malaysia", "Малайзия"],
+  "Asia/Singapore": ["Singapore", "Сингапур"],
   "Asia/Shanghai": ["Shanghai", "Beijing", "China", "Шанхай", "Пекин", "Китай"],
   "Asia/Hong_Kong": ["Hong Kong", "Гонконг"],
-  "Asia/Singapore": ["Singapore", "Сингапур"],
-  "Asia/Tokyo": ["Tokyo", "Токио"],
-  "Asia/Seoul": ["Seoul", "Сеул"],
+  "Asia/Macau": ["Macau", "Macao", "Макао"],
+  "Asia/Taipei": ["Taipei", "Тайбэй", "Taiwan", "Тайвань"],
+  "Asia/Seoul": ["Seoul", "Сеул", "Korea", "Кореея", "Южная Корея"],
+  "Asia/Tokyo": ["Tokyo", "Токио", "Japan", "Япония"],
+  "Asia/Manila": ["Manila", "Манила", "Philippines", "Филиппины"],
 
-  "Australia/Sydney": ["Sydney", "Сидней"],
-  "Australia/Perth": ["Perth", "Перт"],
-  "Pacific/Auckland": ["Auckland", "Окленд"],
+  "Australia/Perth": ["Perth", "Перт", "Australia", "Австралия"],
+  "Australia/Adelaide": ["Adelaide", "Аделаида"],
+  "Australia/Sydney": ["Sydney", "Сидней", "Melbourne", "Мельбурн"],
+  "Pacific/Auckland": ["Auckland", "Окленд", "New Zealand", "Новая Зеландия"],
+
+  "America/New_York": ["New York", "Нью-Йорк", "USA", "США", "East Coast"],
+  "America/Chicago": ["Chicago", "Чикаго"],
+  "America/Denver": ["Denver", "Денвер"],
+  "America/Los_Angeles": ["Los Angeles", "Лос-Анджелес", "LA"],
+  "America/Toronto": ["Toronto", "Торонто", "Canada", "Канада"],
+  "America/Vancouver": ["Vancouver", "Ванкувер"],
+  "America/Mexico_City": ["Mexico City", "Мехико", "Mexico", "Мексика"],
+  "America/Sao_Paulo": ["Sao Paulo", "Сан-Паулу", "Brazil", "Бразилия"],
+  "America/Buenos_Aires": ["Buenos Aires", "Буэнос-Айрес", "Argentina", "Аргентина"],
+  "Africa/Cairo": ["Cairo", "Каир", "Egypt", "Египет"],
+  "Africa/Johannesburg": ["Johannesburg", "Йоханнесбург", "South Africa", "ЮАР"]
 };
 
 
@@ -338,13 +383,8 @@ export default function App() {
 
   function getTimezoneLabel(timeZone) {
     const offset = getTimezoneOffsetLabel(timeZone);
-    const aliases = getTimezoneAliases(timeZone);
-
-    if (aliases.length > 0) {
-      return `${offset} · ${aliases.join(" / ")}`;
-    }
-
-    return `${offset} · ${getTimezoneDisplayName(timeZone)}`;
+    const display = getTimezoneDisplayName(timeZone);
+    return ${offset} · ${display};
   }
 
 
@@ -717,7 +757,11 @@ export default function App() {
                         setShowTimezoneSavedModal(true);
                       }}
                     >
-                      <span>{tz.replaceAll("_", " ")}</span>
+                      <span style={{ textAlign: "left" }}>
+                        {getTimezoneLabel(tz)}
+                        <br />
+                        <span style={{ opacity: 0.7, fontSize: "12px" }}>{tz}</span>
+                      </span>
                       {timezone === tz ? <span>✓</span> : null}
                     </button>
                   ))}
