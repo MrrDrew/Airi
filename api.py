@@ -18,6 +18,7 @@ from fastapi import Request
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 
 limiter = Limiter(key_func=get_remote_address)
@@ -231,7 +232,28 @@ async def airi_calendar_create(
     payload: CalendarCreateReminderIn,
     session: AsyncSession = Depends(get_session),
 ):
-    remind_at_dt = datetime.fromisoformat(payload.remind_at)
+    # 1) читаем timezone пользователя
+    tz_result = await session.execute(
+        text("""
+            SELECT timezone
+            FROM tg_reminder_users
+            WHERE telegram_user_id = :user_id
+            LIMIT 1
+        """),
+        {"user_id": payload.user_id},
+    )
+    tz_row = tz_result.first()
+    user_timezone = tz_row[0] if tz_row and tz_row[0] else "UTC"
+
+    # 2) получаем локальное "наивное" время из фронта
+    local_naive_dt = datetime.fromisoformat(payload.remind_at)
+
+    # 3) привязываем его к timezone пользователя
+    local_dt = local_naive_dt.replace(tzinfo=ZoneInfo(user_timezone))
+
+    # 4) переводим в UTC для хранения в БД
+    remind_at_dt = local_dt.astimezone(ZoneInfo("UTC"))
+
     result = await session.execute(
         text("""
             INSERT INTO tg_reminders (
@@ -269,12 +291,11 @@ async def airi_calendar_create(
             "rrule": payload.rrule,
         },
     )
-    await session.commit()
 
+    await session.commit()
     reminder_id = result.scalar_one()
 
     return {"ok": True, "id": reminder_id}
-
 
 
 @app.post("/api/airi-timezone/save")
