@@ -293,23 +293,31 @@ export default function App() {
 
   const filteredTimezones = useMemo(() => {
     if (screen !== "timezone" || !showTimezoneList) return [];
-
+  
     const q = timezoneSearch.trim().toLowerCase();
+  
+    const quickList = [
+      "Europe/Minsk",
+      "Europe/Moscow",
+      "Europe/Berlin",
+      "Europe/London",
+      "Asia/Dubai",
+      "Asia/Bangkok",
+      "Asia/Shanghai",
+      "Asia/Hong_Kong",
+      "Asia/Singapore",
+      "Asia/Tokyo",
+      "America/New_York",
+      "America/Los_Angeles",
+      "Australia/Sydney",
+  ];
 
-    return allTimezones
-      .filter((tz) => {
-        if (!q) return true;
-        return getTimezoneSearchText(tz).includes(q);
-      })
-      .sort((a, b) => {
-        const diff =
-          getTimezoneOffsetMinutes(a) - getTimezoneOffsetMinutes(b);
+  if (!q) return quickList;
 
-        if (diff !== 0) return diff;
-
-        return getTimezoneLabel(a).localeCompare(getTimezoneLabel(b), "ru");
-      });
-  }, [screen, showTimezoneList, timezoneSearch]);
+  return allTimezones
+    .filter((tz) => getTimezoneSearchText(tz).includes(q))
+    .slice(0, 80);
+}, [screen, showTimezoneList, timezoneSearch]);
 
 
 
@@ -581,89 +589,95 @@ export default function App() {
 
 
   if (screen === "timezone") {
-    return (
-      <div className="app">
-        <div className="container">
-          <div className="card">
-            <div className="card-header">
-              <div className="header-left">
-                <button
-                  className="icon-button"
-                  onClick={() => setScreen("settings")}
-                >
-                  <ArrowLeft size={20} />
-                </button>
+  return (
+    <div className="app">
+      <div className="container">
+        <div className="card">
+          <div className="card-header">
+            <div className="header-left">
+              <button
+                className="icon-button"
+                onClick={() => {
+                  setShowTimezoneList(false);
+                  setTimezoneSearch("");
+                  setScreen("settings");
+                }}
+              >
+                <ArrowLeft size={20} />
+              </button>
 
-                <div>
-                  <h1 className="title">Часовой пояс</h1>
-                  <div className="subtitle">
-                    Определите автоматически или выберите вручную
-                  </div>
+              <div>
+                <h1 className="title">Часовой пояс</h1>
+                <div className="subtitle">
+                  Определите автоматически или выберите вручную
                 </div>
               </div>
             </div>
+          </div>
 
-            <div style={{ display: "grid", gap: "12px" }}>
-              <button
-                className="today-button"
-                style={{ width: "100%" }}
-                onClick={async () => {
-                  const detected = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
-                  if (!detected) return;
+          <div style={{ display: "grid", gap: "12px" }}>
+            <button
+              className="today-button"
+              style={{ width: "100%" }}
+              onClick={async () => {
+                const detected =
+                  Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+                if (!detected) return;
 
-                  await saveTimezone(detected);
+                await saveTimezone(detected);
 
-                  const prettyName = detected.replaceAll("_", " ");
-                  const currentTime = new Intl.DateTimeFormat("ru-RU", {
-                    timeZone: detected,
-                    day: "numeric",
-                    month: "long",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  }).format(new Date());
+                const prettyName = detected.replaceAll("_", " ");
+                const currentTime = new Intl.DateTimeFormat("ru-RU", {
+                  timeZone: detected,
+                  day: "numeric",
+                  month: "long",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }).format(new Date());
 
-                  setSavedTimezoneLabel(prettyName);
-                  setSavedTimezoneTime(currentTime);
-                  setShowTimezoneSavedModal(true);
-                }}
-              >
-                Определить автоматически
-              </button>
+                setSavedTimezoneLabel(prettyName);
+                setSavedTimezoneTime(currentTime);
+                setShowTimezoneSavedModal(true);
+              }}
+            >
+              Определить автоматически
+            </button>
 
-              <button
-                className="today-button"
-                style={{ width: "100%" }}
-                onClick={() => setShowTimezoneList((prev) => !prev)}
-              >
-                Выбрать вручную
-              </button>
+            <button
+              className="today-button"
+              style={{ width: "100%" }}
+              onClick={() => setShowTimezoneList((prev) => !prev)}
+            >
+              {showTimezoneList ? "Скрыть ручной выбор" : "Выбрать вручную"}
+            </button>
 
-              {timezone ? (
+            {timezone ? (
+              <div className="subtitle">
+                Текущий выбор: <b>{timezone.replaceAll("_", " ")}</b>
+              </div>
+            ) : (
+              <div className="subtitle">Часовой пояс пока не выбран</div>
+            )}
+
+            {showTimezoneList && (
+              <>
                 <div className="subtitle">
-                  Текущий выбор: <b>{getTimezoneDisplayName(timezone)}</b> ·{" "}
-                  {timezone} · {getTimezoneOffsetLabel(timezone)}
-                  <br />
-                  Ваше время: {getTimezoneCurrentTime(timezone)}
+                  Без поиска показаны популярные часовые пояса. Для полного
+                  списка начни вводить город или timezone.
                 </div>
-              ) : (
-                <div className="subtitle">Часовой пояс пока не выбран</div>
-              )}
 
-
-              {showTimezoneList && (
-                <>
-                  <input
-                    value={timezoneSearch}
-                    onChange={(e) => setTimezoneSearch(e.target.value)}
-                    placeholder="Поиск timezone, например Asia/Hong_Kong"
-                    style={{
-                      width: "100%",
-                      padding: "12px",
-                      borderRadius: "12px",
-                      border: "1px solid #2a2a2a",
-                      background: "#111",
-                      color: "#fff",
-                    }}
+                <input
+                  value={timezoneSearch}
+                  onChange={(e) => setTimezoneSearch(e.target.value)}
+                  placeholder="Поиск города или timezone"
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    borderRadius: "12px",
+                    border: "1px solid #2a2a2a",
+                    background: "#111",
+                    color: "#fff",
+                  }}
                 />
 
                 <div
@@ -685,25 +699,75 @@ export default function App() {
                       }}
                       onClick={async () => {
                         await saveTimezone(tz);
+                        const prettyName = tz.replaceAll("_", " ");
+                        const currentTime = new Intl.DateTimeFormat("ru-RU", {
+                          timeZone: tz,
+                          day: "numeric",
+                          month: "long",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        }).format(new Date());
+
+                        setSavedTimezoneLabel(prettyName);
+                        setSavedTimezoneTime(currentTime);
+                        setShowTimezoneSavedModal(true);
                       }}
                     >
-                      <span>
-                        {getTimezoneLabel(tz)}
-                        <br />
-                        <span style={{ opacity: 0.7, fontSize: "12px" }}>{tz}</span>
-                      </span>
+                      <span>{tz.replaceAll("_", " ")}</span>
                       {timezone === tz ? <span>✓</span> : null}
                     </button>
                   ))}
                 </div>
               </>
             )}
-            </div>
           </div>
         </div>
+
+        {showTimezoneSavedModal && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.55)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "16px",
+              zIndex: 1200,
+            }}
+            onClick={() => setShowTimezoneSavedModal(false)}
+          >
+            <div
+              className="card"
+              style={{ width: "100%", maxWidth: "420px" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: "grid", gap: "12px" }}>
+                <h2 className="title small" style={{ margin: 0 }}>
+                  Часовой пояс сохранён
+                </h2>
+
+                <div className="subtitle" style={{ lineHeight: 1.5 }}>
+                  Ваш часовой пояс сохранён: <b>{savedTimezoneLabel}</b>
+                  <br />
+                  Текущее время: <b>{savedTimezoneTime}</b>
+                </div>
+
+                <button
+                  className="today-button"
+                  style={{ width: "100%" }}
+                  onClick={() => setShowTimezoneSavedModal(false)}
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   {showTimezoneSavedModal && (
     <div
