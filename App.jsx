@@ -613,7 +613,7 @@ function clearItemLongPress() {
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`);
         }
-
+      }
 
       closeCreateModal();
       await loadDay(selectedDate);
