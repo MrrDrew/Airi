@@ -300,6 +300,8 @@ export default function App() {
   const [creatingTask, setCreatingTask] = useState(false);
 
   const [archivedByDate, setArchivedByDate] = useState({});
+  const [editingTask, setEditingTask] = useState(null);
+  const [editDate, setEditDate] = useState("");
 
   const [showTimezoneSavedModal, setShowTimezoneSavedModal] = useState(false);
   const [savedTimezoneLabel, setSavedTimezoneLabel] = useState("");
@@ -307,6 +309,9 @@ export default function App() {
 
   const longPressTimerRef = useRef(null);
   const longPressTriggeredRef = useRef(false);
+  
+  const itemLongPressTimerRef = useRef(null);
+  const itemLongPressTriggeredRef = useRef(false);
 
   const selectedKey = toKey(selectedDate);
   const cells = useMemo(() => getCalendarCells(viewDate), [viewDate]);
@@ -514,15 +519,52 @@ export default function App() {
         new Date(dateOverride.getFullYear(), dateOverride.getMonth(), 1)
       );
     }
+    
+    const targetDate = dateOverride ? toKey(dateOverride) : selectedKey;
+
+    setEditingTask(null);
+    setEditDate(targetDate);
 
     setNewTaskText("");
     setNewTaskTime(getDefaultTime());
     setNewTaskType("task");
     setShowCreateModal(true);
   }
+  
+  
+  function openEditModal(item) {
+  setEditingTask(item);
+  setEditDate(selectedKey);
+  setNewTaskText(item.task || "");
+  setNewTaskTime(item.time || getDefaultTime());
+  setNewTaskType(item.reminder_type || "task");
+  setShowCreateModal(true);
+}
+
+function startItemLongPress(item) {
+  clearItemLongPress();
+  itemLongPressTriggeredRef.current = false;
+
+  itemLongPressTimerRef.current = setTimeout(() => {
+    itemLongPressTriggeredRef.current = true;
+    openEditModal(item);
+  }, 500);
+}
+
+function clearItemLongPress() {
+  if (itemLongPressTimerRef.current) {
+    clearTimeout(itemLongPressTimerRef.current);
+    itemLongPressTimerRef.current = null;
+  }
+}
 
   function closeCreateModal() {
     setShowCreateModal(false);
+    setEditingTask(null);
+    setEditDate("");
+    setNewTaskText("");
+    setNewTaskTime("12:00");
+    setNewTaskType("task");
   }
 
   async function createTask() {
@@ -532,25 +574,46 @@ export default function App() {
       setCreatingTask(true);
 
       const dateKey = toKey(selectedDate);
-      const remindAt = `${dateKey}T${newTaskTime}:00`;
+      const targetDate = editingTask ? editDate : toKey(selectedDate);
+      const remindAt = `${targetDate}T${newTaskTime}:00`;
+      
+      if (editingTask) {
+        const res = await fetch(`/api/airi-calendar/update/${editingTask.id}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            user_id: USER_ID,
+            task: newTaskText.trim(),
+            reminder_type: newTaskType,
+            remind_at: remindAt,
+            is_recurring: editingTask.is_recurring || false,
+          }),
+        });
+      
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+      } else {
+        const res = await fetch(`/api/airi-calendar/create`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            user_id: USER_ID,
+            task: newTaskText.trim(),
+            reminder_type: newTaskType,
+            remind_at: remindAt,
+            is_recurring: false,
+          }),
+        });
+      
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
 
-      const res = await fetch(`/api/airi-calendar/create`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          user_id: USER_ID,
-          task: newTaskText.trim(),
-          reminder_type: newTaskType,
-          remind_at: remindAt,
-          is_recurring: false,
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
 
       closeCreateModal();
       await loadDay(selectedDate);
@@ -1075,15 +1138,19 @@ export default function App() {
           ) : (
             <div className="items-list">
               {visibleItems.map((item) => (
-                <div key={`${filter}-${item.id}`} className="item-card">
-                  <div className="item-content compact">
                     <div
-                      className="item-time"
-                      style={{
-                        minWidth: "48px",
-                        flex: "0 0 48px",
-                        fontWeight: 600,
-                        color: "#cfcfcf",
+                      key={`${filter}-${item.id}`}
+                      className="item-card"
+                      onTouchStart={() => {
+                        if (filter !== "archive") startItemLongPress(item);
+                      }}
+                      onTouchEnd={clearItemLongPress}
+                      onTouchMove={clearItemLongPress}
+                      onTouchCancel={clearItemLongPress}
+                      onContextMenu={(e) => {
+                        if (filter === "archive") return;
+                        e.preventDefault();
+                        openEditModal(item);
                       }}
                     >
                       {item.time}
@@ -1150,16 +1217,34 @@ export default function App() {
             >
               <div className="card-header">
                 <div>
-                  <h2 className="title small">Новая задача</h2>
+                  <h2 className="title small">
+                    {editingTask ? "Редактировать напоминание" : "Новая задача"}
+                  </h2>
                   <div className="subtitle">
-                    {selectedDate.getDate()}{" "}
-                    {monthNamesGenitive[selectedDate.getMonth()]}
+                    {editingTask
+                      ? "Можно изменить текст, время, тип и перенести на другой день"
+                      : `${selectedDate.getDate()} ${monthNamesGenitive[selectedDate.getMonth()]}`}
                   </div>
                 </div>
               </div>
 
               <div style={{ display: "grid", gap: "12px" }}>
                 <input
+                  {editingTask && (
+                    <input
+                      type="date"
+                      value={editDate}
+                      onChange={(e) => setEditDate(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "12px",
+                        borderRadius: "12px",
+                        border: "1px solid #2a2a2a",
+                        background: "#111",
+                        color: "#fff",
+                      }}
+                    />
+                  )}
                   value={newTaskText}
                   onChange={(e) => setNewTaskText(e.target.value)}
                   placeholder="Название задачи"
@@ -1223,7 +1308,13 @@ export default function App() {
                     onClick={createTask}
                     disabled={creatingTask}
                   >
-                    {creatingTask ? "Создание..." : "Создать"}
+                    {creatingTask
+                      ? editingTask
+                        ? "Сохранение..."
+                        : "Создание..."
+                      : editingTask
+                        ? "Сохранить"
+                        : "Создать"}
                   </button>
                 </div>
               </div>
