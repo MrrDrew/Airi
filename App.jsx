@@ -1239,7 +1239,6 @@ function clearItemLongPress() {
               </div>
 
               <div style={{ display: "grid", gap: "12px" }}>
-                <input
                   {editingTask && (
                     <input
                       type="date"
