@@ -298,6 +298,57 @@ async def airi_calendar_create(
     return {"ok": True, "id": reminder_id}
 
 
+
+@app.post("/api/airi-calendar/update/{reminder_id}")
+@limiter.limit("60/minute")
+async def airi_calendar_update(
+    request: Request,
+    reminder_id: int,
+    payload: CalendarCreateReminderIn,
+    session: AsyncSession = Depends(get_session),
+):
+    tz_result = await session.execute(
+        text("""
+            SELECT timezone
+            FROM tg_reminder_users
+            WHERE telegram_user_id = :user_id
+            LIMIT 1
+        """),
+        {"user_id": payload.user_id},
+    )
+    tz_row = tz_result.first()
+    user_timezone = tz_row[0] if tz_row and tz_row[0] else "UTC"
+
+    local_naive_dt = datetime.fromisoformat(payload.remind_at)
+    local_dt = local_naive_dt.replace(tzinfo=ZoneInfo(user_timezone))
+    remind_at_dt = local_dt.astimezone(ZoneInfo("UTC"))
+
+    await session.execute(
+        text("""
+            UPDATE tg_reminders
+            SET
+                task = :task,
+                reminder_type = :reminder_type,
+                remind_at = :remind_at,
+                updated_at = NOW()
+            WHERE id = :reminder_id
+              AND telegram_user_id = :user_id
+        """),
+        {
+            "task": payload.task,
+            "reminder_type": payload.reminder_type,
+            "remind_at": remind_at_dt,
+            "reminder_id": reminder_id,
+            "user_id": payload.user_id,
+        },
+    )
+
+    await session.commit()
+
+    return {"ok": True}
+
+
+
 @app.post("/api/airi-timezone/save")
 @limiter.limit("60/minute")
 async def airi_timezone_save(
