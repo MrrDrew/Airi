@@ -122,6 +122,12 @@ const allTimezones =
 
 
 
+const params = new URLSearchParams(window.location.search);
+const initialScreen = params.get("screen") === "timezone" ? "timezone" : "calendar";
+const [screen, setScreen] = useState(initialScreen);
+
+
+
 function getTimezoneOffsetLabel(timeZone) {
   try {
     const now = new Date();
