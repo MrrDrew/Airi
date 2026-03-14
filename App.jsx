@@ -1138,24 +1138,34 @@ function clearItemLongPress() {
           ) : (
             <div className="items-list">
               {visibleItems.map((item) => (
+                <div
+                  key={`${filter}-${item.id}`}
+                  className="item-card"
+                  onTouchStart={() => {
+                    if (filter !== "archive") startItemLongPress(item);
+                  }}
+                  onTouchEnd={clearItemLongPress}
+                  onTouchMove={clearItemLongPress}
+                  onTouchCancel={clearItemLongPress}
+                  onContextMenu={(e) => {
+                    if (filter === "archive") return;
+                    e.preventDefault();
+                    openEditModal(item);
+                  }}
+                >
+                  <div className="item-content compact">
                     <div
-                      key={`${filter}-${item.id}`}
-                      className="item-card"
-                      onTouchStart={() => {
-                        if (filter !== "archive") startItemLongPress(item);
-                      }}
-                      onTouchEnd={clearItemLongPress}
-                      onTouchMove={clearItemLongPress}
-                      onTouchCancel={clearItemLongPress}
-                      onContextMenu={(e) => {
-                        if (filter === "archive") return;
-                        e.preventDefault();
-                        openEditModal(item);
+                      className="item-time"
+                      style={{
+                        minWidth: "48px",
+                        flex: "0 0 48px",
+                        fontWeight: 600,
+                        color: "#cfcfcf",
                       }}
                     >
                       {item.time}
                     </div>
-
+                
                     <div
                       className="item-title-block"
                       style={{ minWidth: 0, flex: "1 1 auto", overflow: "hidden" }}
@@ -1164,19 +1174,34 @@ function clearItemLongPress() {
                         <span className="item-inline-emoji">
                           {item.reminder_type === "event" ? "🔔" : "🗓️"}
                         </span>
-
+                
                         <div
                           className="item-title multiline"
                           style={filter === "archive" ? { opacity: 0.75 } : undefined}
                         >
                           {item.task}
                         </div>
-
+                
                         {item.is_recurring && <div className="mini-badge">🔁</div>}
                         {filter === "archive" && <div className="mini-badge">Архив</div>}
                       </div>
                     </div>
                   </div>
+                
+                  {filter !== "archive" && (
+                    <button
+                      className="complete-button compact"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        completeTask(item);
+                      }}
+                      title="Удалить / завершить"
+                    >
+                      <span className="complete-button-x">✕</span>
+                    </button>
+                  )}
+                </div>
+              </div>
 
                   {filter !== "archive" && (
                     <button
