@@ -1201,21 +1201,6 @@ function clearItemLongPress() {
                     </button>
                   )}
                 </div>
-              </div>
-
-                  {filter !== "archive" && (
-                    <button
-                      className="complete-button compact"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        completeTask(item);
-                      }}
-                      title="Удалить / завершить"
-                    >
-                      <span className="complete-button-x">✕</span>
-                    </button>
-                  )}
-                </div>
               ))}
             </div>
           )}
